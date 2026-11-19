@@ -187,6 +187,22 @@ local function AllItemIDs()
     return ids
 end
 
+-- How many of an item (matched by exact name) your characters hold, plus its item ID if one is found.
+function M.CountByName(name)
+    local total, foundID = 0, nil
+    for id in pairs(AllItemIDs()) do
+        local n = C_Item.GetItemNameByID(id)
+        if n == name then
+            foundID = id
+            local _, _, grand = GetCounts(id)
+            total = total + grand
+        elseif not n and C_Item.RequestLoadItemDataByID then
+            C_Item.RequestLoadItemDataByID(id)
+        end
+    end
+    return total, foundID
+end
+
 local function FindItemByName(query)
     query = query:lower()
     for id in pairs(AllItemIDs()) do
