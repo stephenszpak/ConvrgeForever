@@ -1,0 +1,218 @@
+-- Prices.lua: what a reagent costs to buy, and what a craft costs and fetches on the auction house.
+local ns = _G.NaowhForever
+
+local P = ns.Professions
+local S = P.Settings
+local R = P.Recipes
+local V = P.Vendors
+
+local AH_CUT = 0.05
+local FROM_VENDOR, FROM_AH, FROM_MADE = "vendor", "ah", "made"
+local DEFAULT_ROI_GREY_BELOW, DEFAULT_ROI_GREEN_FROM = 10, 30
+local PERCENT = 100
+local SELL_PRICE = 11
+local LISTED_ENOUGH = 10
+local TEXT_ROI = ns.L("(%.0f%% ROI)")
+
+local EMPTY = {}
+local profitCache, netCache, bestNetCache = {}, {}, {}
+local bestSkill
+local plan = { cost = {}, make = {}, craft = {}, busy = {} }
+
+local function AuctionPrice(itemID)
+    return ns.AuctionPrice and ns.AuctionPrice(itemID)
+end
+
+local function BuyPrice(itemID)
+    local vendor = V.Price(itemID)
+    local ah = AuctionPrice(itemID)
+    if vendor and (not ah or vendor <= ah) then return vendor, FROM_VENDOR end
+    if ah then return ah, FROM_AH end
+end
+
+local function MakePlan()
+    if not P.Shopping.MakeOwn() then return end
+    plan.owned = R.Owned()
+    return plan
+end
+
+local function ReagentPrice(itemID, makes)
+    if makes then
+        local each, made = P.Shopping.Cheapest(itemID, makes, 0)
+        if made then return each, FROM_MADE end
+    end
+    return BuyPrice(itemID)
+end
+
+local function ProfitShown()
+    return S.Get("craftProfit") and ns.AuctionScanTime and ns.AuctionScanTime() ~= nil
+end
+
+local function AfterCut(each, made)
+    return math.floor(each * made * (1 - AH_CUT))
+end
+
+local function SellValue(output, made)
+    if not output then return 0 end
+    local each = select(SELL_PRICE, C_Item.GetItemInfo(output))
+    if each then return each * made end
+    R.ItemName(output)
+end
+
+local function AuctionValue(output, made)
+    local each = AuctionPrice(output)
+    local listed = ns.AuctionListed and ns.AuctionListed(output)
+    if each and listed and listed >= LISTED_ENOUGH then return AfterCut(each, made) end
+end
+
+local function DisenchantValue(output, made, enchanting)
+    local values = P.DisenchantValues
+    local prices = ns.AuctionPriceList and ns.AuctionPriceList()
+    if not prices then return end
+    local _, _, quality, baseLevel, _, _, _, _, equip, _, _, classID = C_Item.GetItemInfo(output)
+    if not (quality and values.ItemTakes(output, classID, quality, equip)) then return end
+    local level = C_Item.GetDetailedItemLevelInfo(output) or baseLevel
+    local required = values.RequiredSkill(level, quality)
+    if not (required and enchanting >= required) then return end
+    local gross = values.Expected(classID, quality, level, prices)
+    return gross and values.AfterCut(gross) * made
+end
+
+local function BestValue(output, made, enchanting)
+    local vendor = SellValue(output, made)
+    if not (output and vendor) then return vendor end
+    return math.max(vendor, AuctionValue(output, made) or 0, DisenchantValue(output, made, enchanting) or 0)
+end
+
+local function CraftValue(recipeID, output, made, v)
+    v.cost, v.missing, v.owned, v.output, v.made = 0, 0, 0, output, made or 1
+    local ok, reagents = pcall(R.Reagents, recipeID)
+    local owned, makes, n = R.Owned(), MakePlan(), 0
+    for _, r in ipairs(ok and reagents or EMPTY) do
+        local each, from = ReagentPrice(r.itemID, makes)
+        local have = owned[r.itemID] == true
+        n = n + 1
+        local p = v.parts[n] or {}
+        v.parts[n] = p
+        p.itemID, p.need, p.each, p.from, p.owned = r.itemID, r.need, each, from, have
+        if have then
+            v.owned = v.owned + 1
+        elseif each then
+            v.cost = v.cost + each * r.need
+        else
+            v.missing = v.missing + 1
+        end
+    end
+    for i = n + 1, #v.parts do v.parts[i] = nil end
+    local each = output and AuctionPrice(output)
+    v.each = each
+    v.sale = each and AfterCut(each, v.made)
+    v.vendor = SellValue(output, v.made)
+    return v
+end
+
+local function ReagentCost(reagents)
+    local owned, makes, cost, missing = R.Owned(), MakePlan(), 0, 0
+    for _, r in ipairs(reagents) do
+        if owned[r.itemID] ~= true then
+            local price = ReagentPrice(r.itemID, makes)
+            if price then
+                cost = cost + price * r.need
+            else
+                missing = missing + 1
+            end
+        end
+    end
+    return cost, missing
+end
+
+local function RecipeProfit(recipeID, output, made)
+    if not (output and ProfitShown()) then return end
+    local profit = profitCache[recipeID]
+    if profit == nil then
+        profit = false
+        local each = AuctionPrice(output)
+        local ok, reagents = pcall(R.Reagents, recipeID)
+        if each and ok and #reagents > 0 then
+            local cost, missing = ReagentCost(reagents)
+            if missing == 0 then profit = AfterCut(each, made or 1) - cost end
+        end
+        profitCache[recipeID] = profit
+    end
+    return profit or nil
+end
+
+local function NetCost(recipeID, enchanting)
+    if enchanting and enchanting ~= bestSkill then
+        wipe(bestNetCache)
+        bestSkill = enchanting
+    end
+    local cache = enchanting and bestNetCache or netCache
+    local net = cache[recipeID]
+    if net == nil then
+        net = false
+        local ok, reagents = pcall(R.Reagents, recipeID)
+        if ok and #reagents > 0 then
+            local cost, missing = ReagentCost(reagents)
+            local output, made = R.OutputItem(recipeID)
+            local sell
+            if enchanting then
+                sell = BestValue(output, made or 1, enchanting)
+            else
+                sell = SellValue(output, made or 1)
+            end
+            if missing == 0 and sell then net = cost - sell end
+        end
+        cache[recipeID] = net
+    end
+    return net or nil
+end
+
+local function ROI(profit, cost)
+    if type(profit) ~= "number" or type(cost) ~= "number" or cost <= 0 then return end
+    return profit / cost * PERCENT
+end
+
+local function ROIThresholds()
+    local grey = math.max(0, tonumber(S.Get("roiGreyBelow")) or DEFAULT_ROI_GREY_BELOW)
+    local green = math.max(grey, tonumber(S.Get("roiGreenFrom")) or DEFAULT_ROI_GREEN_FROM)
+    return grey, green
+end
+
+local function ROIBand(roi)
+    if type(roi) ~= "number" then return end
+    if roi < 0 then return "negative" end
+    local grey, green = ROIThresholds()
+    if roi < grey then return "muted" end
+    if roi < green then return "yellow" end
+    return "green"
+end
+
+local function ROIText(roi)
+    if type(roi) ~= "number" then return end
+    return TEXT_ROI:format(roi)
+end
+
+local function ClearCache()
+    wipe(profitCache)
+    wipe(netCache)
+    wipe(bestNetCache)
+    wipe(plan.cost); wipe(plan.make); wipe(plan.craft); wipe(plan.busy)
+end
+
+P.Prices = {
+    FROM_VENDOR = FROM_VENDOR,
+    FROM_MADE = FROM_MADE,
+    LISTED_ENOUGH = LISTED_ENOUGH,
+    AfterCut = AfterCut,
+    BuyPrice = BuyPrice,
+    ProfitShown = ProfitShown,
+    CraftValue = CraftValue,
+    RecipeProfit = RecipeProfit,
+    NetCost = NetCost,
+    ROI = ROI,
+    ROIThresholds = ROIThresholds,
+    ROIBand = ROIBand,
+    ROIText = ROIText,
+    ClearCache = ClearCache,
+}

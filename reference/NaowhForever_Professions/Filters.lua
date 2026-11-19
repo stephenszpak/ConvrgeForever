@@ -1,0 +1,142 @@
+-- Filters.lua: the Filter menu's choices and which recipes, learned or not, pass them.
+local ns = _G.NaowhForever
+
+local P = ns.Professions
+local S = P.Settings
+local W = P.State
+local R = P.Recipes
+local Prices = P.Prices
+local Favorites = P.Favorites
+local Auctions = P.Auctions
+
+local TRIVIAL = 3
+local BIND_INDEX = 14
+local BIND_NEVER = 0
+local STORE = "professionFilters"
+local SORT = "sortSkillUps"
+
+local FILTERS = {
+    { key = "filterFavorite", text = ns.L("Favorites") },
+    { key = "filterMaterials", text = ns.L("Have Materials") },
+    { key = "filterSkillUp", text = ns.L("Has Skill-Up") },
+    { key = "filterProfit", text = ns.L("Profitable"), profit = true },
+    { key = "filterNotSelling", text = ns.L("Not Selling"), auctions = true },
+    { key = "filterBoE", text = ns.L("Bind on Equip"), bind = 2, divider = true },
+    { key = "filterBoP", text = ns.L("Bind on Pickup"), bind = 1 },
+    { key = "filterFromTrainer", text = ns.L("Trainer"), source = "trainer" },
+    { key = "filterFromVendor", text = ns.L("Vendor"), source = "vendor" },
+    { key = "filterFromDrop", text = ns.L("Drop"), source = "drop" },
+    { key = "filterFromQuest", text = ns.L("Quest"), source = "quest" },
+}
+for _, f in ipairs(FILTERS) do FILTERS[f.key] = f end
+local SOURCE_OF = { teacher = "trainer" }
+
+local function Saved()
+    local id = W.profID
+    if not id then return end
+    local db = S.DB()
+    if type(db[STORE]) ~= "table" then db[STORE] = {} end
+    local saved = db[STORE][id]
+    if not saved then
+        saved = { [SORT] = S.Get(SORT) == true }
+        for _, f in ipairs(FILTERS) do saved[f.key] = S.Get(f.key) == true end
+        db[STORE][id] = saved
+    end
+    return saved
+end
+
+local function Get(key)
+    local saved = Saved()
+    if saved then return saved[key] == true end
+    return S.Get(key) == true
+end
+
+local function Set(key, value)
+    local saved = Saved()
+    if saved then saved[key] = value else S.Set(key, value) end
+end
+
+local function Available(f)
+    return (not f.profit or Prices.ProfitShown()) and (not f.auctions or Auctions.Ready())
+        and (not f.source or S.Get("recipeFinder"))
+end
+
+local function FilterOn(f)
+    return Get(f.key) and Available(f)
+end
+
+local function MadeItem(info, r)
+    if info then return R.OutputItem(info.recipeID) end
+    return r.item or R.OutputItem(r.spell)
+end
+
+local function PassesBind(info, r)
+    local boe, bop = FilterOn(FILTERS.filterBoE), FilterOn(FILTERS.filterBoP)
+    if not (boe or bop) then return true end
+    local item = MadeItem(info, r)
+    local bind = item and select(BIND_INDEX, C_Item.GetItemInfo(item))
+    if item and bind == nil then R.Request(item) end
+    local asBoE = bind == FILTERS.filterBoE.bind or bind == BIND_NEVER
+    return (boe and asBoE) or (bop and bind == FILTERS.filterBoP.bind)
+end
+
+local function Profitable(recipeID, output, made)
+    local profit = Prices.RecipeProfit(recipeID, output, made)
+    return profit and profit > 0
+end
+
+local function PassesLearned(info)
+    if FilterOn(FILTERS.filterMaterials) and R.Craftable(info) == 0 then return false end
+    if FilterOn(FILTERS.filterSkillUp) and info.relativeDifficulty == TRIVIAL then return false end
+    if FilterOn(FILTERS.filterProfit) and not Profitable(info.recipeID, R.OutputItem(info.recipeID)) then
+        return false
+    end
+    if FilterOn(FILTERS.filterNotSelling) and Auctions.Count(R.OutputItem(info.recipeID)) > 0 then return false end
+    return true
+end
+
+local function PassesSource(r)
+    local source, any = SOURCE_OF[r.source] or r.source, false
+    for _, f in ipairs(FILTERS) do
+        if f.source and FilterOn(f) then
+            if f.source == source then return true end
+            any = true
+        end
+    end
+    return not any
+end
+
+local function PassesUnlearned(r)
+    if FilterOn(FILTERS.filterMaterials) or FilterOn(FILTERS.filterNotSelling) then return false end
+    if not PassesSource(r) then return false end
+    if FilterOn(FILTERS.filterProfit) then
+        local read, made = R.OutputItem(r.spell)
+        if not Profitable(r.spell, r.item or read, made) then return false end
+    end
+    return true
+end
+
+local function Passes(info, r)
+    if W.linked then return true end
+    if FilterOn(FILTERS.filterFavorite) and not Favorites.Is(info or r) then return false end
+    if not PassesBind(info, r) then return false end
+    if info then return PassesLearned(info) end
+    return PassesUnlearned(r)
+end
+
+local function Active()
+    local n = 0
+    for _, f in ipairs(FILTERS) do
+        if FilterOn(f) then n = n + 1 end
+    end
+    return n
+end
+
+P.Filters = {
+    LIST = FILTERS,
+    Available = Available,
+    Passes = Passes,
+    Active = Active,
+    Get = Get,
+    Set = Set,
+}
