@@ -1,0 +1,56 @@
+<Bindings>
+    <Binding name="CLICK NaowhForeverBlessNext:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverBlessNextGreater:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverFoodBarFood:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverFoodBarDrink:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverTrinket1:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverTrinket2:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverDisenchantAll:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverFish:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="NAOWHFOREVER_FISHING_GEAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_FishingGearOff()</Binding>
+    <Binding name="NAOWHFOREVER_BAGSPACE_PICKUP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BagSpacePickUp()</Binding>
+    <Binding name="NAOWHFOREVER_JOURNAL" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleJournal()</Binding>
+    <Binding name="NAOWHFOREVER_BIS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleBis()</Binding>
+    <Binding name="NAOWHFOREVER_GROUPINSPECT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleGroupInspect()</Binding>
+    <Binding name="NAOWHFOREVER_COMPLETO" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleCompleto()</Binding>
+    <Binding name="NAOWHFOREVER_BOSSLOOT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BossLoot()</Binding>
+    <Binding name="NAOWHFOREVER_HUD" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleHudEditor()</Binding>
+    <Binding name="NAOWHFOREVER_INSTANCE" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("instance")</Binding>
+    <Binding name="NAOWHFOREVER_DISCOVERY" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("discovery")</Binding>
+    <Binding name="NAOWHFOREVER_GEAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("gear")</Binding>
+    <Binding name="NAOWHFOREVER_BLESS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("bless")</Binding>
+    <Binding name="NAOWHFOREVER_MACROS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("macros")</Binding>
+    <Binding name="NAOWHFOREVER_BARS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("bars")</Binding>
+    <Binding name="NAOWHFOREVER_BUFFS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("buffs")</Binding>
+    <Binding name="NAOWHFOREVER_THREAT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("threat")</Binding>
+    <Binding name="NAOWHFOREVER_PVP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("pvp")</Binding>
+    <Binding name="NAOWHFOREVER_MARKET" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("market")</Binding>
+    <Binding name="NAOWHFOREVER_MARKET_CANCEL" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_MarketCancelNext()</Binding>
+    <Binding name="NAOWHFOREVER_TRAINING" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleTraining()</Binding>
+    <Binding name="NAOWHFOREVER_JOURNEYS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Journeys")</Binding>
+    <Binding name="NAOWHFOREVER_PROFESSIONS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Professions")</Binding>
+    <Binding name="NAOWHFOREVER_CONSUMABLEBAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Consumable Bar")</Binding>
+    <Binding name="NAOWHFOREVER_SWINGTIMER" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Swing Timer")</Binding>
+    <Binding name="NAOWHFOREVER_TOPBAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_OpenTopBar()</Binding>
+    <Binding name="NAOWHFOREVER_SCRAP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("scrap")</Binding>
+    <Binding name="NAOWHFOREVER_FIND" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("find")</Binding>
+    <Binding name="NAOWHFOREVER_DISENCHANT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("disenchant")</Binding>
+    <Binding name="NAOWHFOREVER_QUIZ" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("quiz")</Binding>
+    <Binding name="NAOWHFOREVER_AIM" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("aim")</Binding>
+    <Binding name="NAOWHFOREVER_WORD" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("word")</Binding>
+    <Binding name="NAOWHFOREVER_EFFICIENCY" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("efficiency")</Binding>
+    <Binding name="CLICK MultiCastSummonSpellButton:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton1:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton2:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton3:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton4:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton5:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton6:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton7:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton8:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton9:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton10:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton11:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastActionButton12:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+    <Binding name="CLICK MultiCastRecallSpellButton:LeftButton" category="BINDING_HEADER_NAOWHFOREVER_TOTEMS"/>
+</Bindings>

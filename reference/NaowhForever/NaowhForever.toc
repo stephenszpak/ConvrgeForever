@@ -1,0 +1,30 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever
+## Notes: Naowh's Forever companion: the window every module shares.
+## Author: Naowh
+## Version: 1.4.0
+## LoadSavedVariablesFirst: 1
+## OptionalDeps: NaowhUI_Media
+## SavedVariables: NaowhForeverDB
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+## AddonCompartmentFunc: NaowhForever_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: NaowhForever_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: NaowhForever_OnCompartmentLeave
+
+Libs\embeds.xml
+
+# The English catalog first; the other languages are their own NaowhForever_<code> addon, loaded
+# by Core.lua. Each area loads its own files through its XML, in this order; add a file to that
+# XML, never here.
+Core\Locales\enUS.lua
+
+Core\Core.xml
+Core\Integrations\RestedXP\RestedXP.xml
+Core\Integrations\Polestar\Polestar.xml
+Core\Options.xml
+Shared\Shared.xml
+Core\Profiles.xml
+Core\Settings.xml
+Core\Badges\Badges.xml
+Core\Pages.xml
