@@ -1,4 +1,0 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- Polestar.xml: the Waypoint Pin's feed from Polestar's guide target. -->
-    <Script file="Waypoint.lua"/>
-</Ui>
