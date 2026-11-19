@@ -1,0 +1,4 @@
+<Bindings>
+    <Binding name="CLICK ConvrgeFishSwapButton:LeftButton" header="CONVRGEFOREVER" category="ADDONS"/>
+    <Binding name="CLICK ConvrgeFishCastButton:LeftButton" category="ADDONS"/>
+</Bindings>

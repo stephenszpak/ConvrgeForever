@@ -1,0 +1,25 @@
+## Interface: 16000
+## Title: ConvrgeForever
+## Notes: Lightweight modules for WoW Forever: Stash, Fishing, Carrot (mount trinket swap) and Gold tracking.
+## Author: You
+## Version: 1.0.0
+## SavedVariables: ConvrgeForeverDB
+## SavedVariablesPerCharacter: ConvrgeForeverCharDB
+## OptionalDeps: EllesmereUI, StashCount, FishFriend
+## IconTexture: Interface\Icons\INV_Misc_Bag_10
+## AddonCompartmentFunc: ConvrgeForever_Toggle
+
+Core\Core.lua
+Core\Widgets.lua
+Core\Window.lua
+
+Modules\Stash\Stash.lua
+
+Modules\Fishing\Data.lua
+Modules\Fishing\Fishing.lua
+Modules\Fishing\FishingUI.lua
+
+Modules\Carrot\Carrot.lua
+
+Modules\Gold\Gold.lua
+Modules\Gold\GoldUI.lua
