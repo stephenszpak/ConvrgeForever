@@ -1,7 +1,10 @@
 -- Stash module: item counts across your characters' bags, equipped gear,
 -- character bank and Warband bank, shown in item tooltips. Covers every
--- saved character, or only the current realm + faction if allCharacters
+-- saved character, or only the current ruleset + faction if allCharacters
 -- is off. (Formerly the StashCount addon.)
+--
+-- WoW Forever has rulesets (PvP, Normal, RP...) instead of realms;
+-- GetRealmName() is what tells them apart, so "realm" below means ruleset.
 
 local _, CF = ...
 local W = CF.W
@@ -123,7 +126,7 @@ end
 local FACTION_TAG = { Alliance = "|cff4a8cff[A]|r", Horde = "|cffe03c3c[H]|r" }
 
 -- Calls fn(name, realm, faction, data) for every saved character in scope:
--- all realms and factions, or only the current ones when allCharacters is off.
+-- all rulesets and factions, or only the current ones when allCharacters is off.
 local function ForEachChar(fn)
     local all = M.db.allCharacters
     for realm, factions in pairs(M.db.realms) do
@@ -139,7 +142,7 @@ end
 
 local function CharLabel(name, realm, faction, class)
     local s = ClassColored(name, class)
-    if realm ~= playerRealm then s = s .. C(GREY, "-" .. realm) end
+    if realm ~= playerRealm then s = s .. C(GREY, " (" .. realm .. ")") end
     if faction ~= playerFaction and FACTION_TAG[faction] then s = s .. " " .. FACTION_TAG[faction] end
     return s
 end
@@ -244,10 +247,10 @@ local function ForgetChar(realm, faction, name)
     chars[name] = nil
     if not next(chars) then factions[faction] = nil end
     if not next(factions) then M.db.realms[realm] = nil end
-    return true, "Forgot " .. name .. "-" .. realm .. "."
+    return true, "Forgot " .. name .. " (" .. realm .. ")."
 end
 
--- Accepts "Name" or "Name-Realm"; searches every realm and faction.
+-- Accepts "Name" or "Name-Ruleset"; searches every ruleset and faction.
 local function DeleteChar(query)
     local qName, qRealm = query:match("^([^%-]+)%-(.+)$")
     qName = (qName or query):lower()
@@ -263,7 +266,7 @@ local function DeleteChar(query)
         end
     end
     if #found == 0 then return false, "No saved character named \"" .. query .. "\"." end
-    if #found > 1 then return false, "More than one saved character is named that; use Name-Realm." end
+    if #found > 1 then return false, "More than one saved character is named that; use Name-Ruleset, e.g. Bob-PvP." end
     return ForgetChar(found[1][1], found[1][2], found[1][3])
 end
 
@@ -293,7 +296,7 @@ function M:slash(msg)
         Print("commands:")
         print("   /stash  - open the Stash window")
         print("   /stash <item link, ID or name>  - print counts")
-        print("   /stash delete <name or name-realm>  - forget a character")
+        print("   /stash delete <name or name-ruleset>  - forget a character")
     elseif cmd == "delete" and rest ~= "" then
         local _, text = DeleteChar(rest)
         Print(text)
@@ -451,7 +454,7 @@ end
 
 local function RefreshChars(p)
     if M.db.allCharacters then
-        p.title:SetText("All realms and factions")
+        p.title:SetText("All rulesets and factions")
     else
         p.title:SetText(playerRealm .. C(GREY, "  ·  " .. playerFaction))
     end
@@ -490,9 +493,9 @@ local function BuildSettings(p)
             function(v) db.includeEquipped = v end, "Count gear your characters are wearing, not just bags and banks."),
         W.Check(p, "Show Warband bank", function() return db.showWarband end,
             function(v) db.showWarband = v end, "The Warband bank is shared by your whole account."),
-        W.Check(p, "Include characters on other realms and factions", function() return db.allCharacters end,
+        W.Check(p, "Include characters on other rulesets and factions", function() return db.allCharacters end,
             function(v) db.allCharacters = v end,
-            "When off, only characters on your current realm and faction are counted."),
+            "When off, only characters on your current ruleset (PvP, Normal, RP...) and faction are counted."),
     }
     for i, w in ipairs(p.items) do w:SetPoint("TOPLEFT", 0, -24 - (i - 1) * 24) end
 
@@ -502,7 +505,7 @@ local function BuildSettings(p)
     t:SetWidth(520)
     t:SetWordWrap(true)
     t:SetText("Log into each character once to record its bags, and open a banker once to record its bank. "
-        .. "Characters on another realm show their realm name, and other-faction characters show [A] or [H]. "
+        .. "Characters on another ruleset show it in brackets, e.g. (PvP), and other-faction characters show [A] or [H]. "
         .. "Data saves on logout or /reload.")
 end
 
