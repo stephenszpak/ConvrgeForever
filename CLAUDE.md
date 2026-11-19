@@ -12,6 +12,8 @@ A World of Warcraft addon for **WoW Forever** (TOC `## Interface: 16000`), bundl
 - `Core/Core.lua`: module registry (`CF:NewModule(key, def)`), saved-variable defaults, legacy-addon migration, slash commands. The header comment documents the module fields.
 - `Core/Widgets.lua`, `Core/Window.lua`: shared UI widgets (`CF.W`) and the settings window.
 - `Modules/<Name>/`: one folder per module. List new files in `ConvrgeForever.toc`.
+- `Modules/Professions/Data.lua` is generated from the wow-professions.com Forever guides by `tools/build_professions.py`; re-run the script instead of editing it. The guides name materials but give no item IDs, so the module matches by name (Stash counts, auction house name search) and caches IDs in `db.itemIDs`.
+- WoW Forever uses the modern auction house API (`C_AuctionHouse`, commodities): search, `StartCommoditiesPurchase` for the price, `ConfirmCommoditiesPurchase` on a click.
 
 ## Checking changes
 

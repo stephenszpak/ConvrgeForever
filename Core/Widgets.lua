@@ -238,8 +238,8 @@ end
 
 ---------------------------------------------------------------------------
 -- Scrolling list with columns. columns = { { width, justify }, ... }
--- Items: { cols = { ... }, r, g, b, mark = bool, onClick = fn, itemID = n }
--- Rows with itemID show the item tooltip on hover.
+-- Items: { cols = { ... }, r, g, b, mark = bool, onClick = fn, itemID = n, tip = fn(tooltip) }
+-- Rows with itemID show the item tooltip on hover; rows with tip fill the tooltip themselves.
 ---------------------------------------------------------------------------
 function W.List(parent, columns, rowH, nRows)
     local f = CreateFrame("Frame", nil, parent)
@@ -281,6 +281,10 @@ function W.List(parent, columns, rowH, nRows)
             if self.item and self.item.itemID then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetItemByID(self.item.itemID)
+                GameTooltip:Show()
+            elseif self.item and self.item.tip then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                self.item.tip(GameTooltip)
                 GameTooltip:Show()
             end
         end)
