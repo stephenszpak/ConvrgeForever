@@ -324,24 +324,64 @@ end
 ---------------------------------------------------------------------------
 -- Startup
 ---------------------------------------------------------------------------
-function M:OnLogin()
-    playerName = UnitName("player")
+-- WoW Forever reports the player's name as UNKNOWNOBJECT ("Unknown") early in
+-- loading, sometimes still at PLAYER_LOGIN. Recording the character then
+-- saved every alt under the same "Unknown" entry, each login overwriting the
+-- last, so no other character was ever shown.
+local function IsUnknownName(n)
+    return not n or n == "" or n == UNKNOWNOBJECT or n == "Unknown"
+end
+
+-- Drop entries written before the game knew the name.
+local function PurgeUnknown(db)
+    for realm, factions in pairs(db.realms) do
+        for faction, chars in pairs(factions) do
+            for name in pairs(chars) do
+                if IsUnknownName(name) then chars[name] = nil end
+            end
+            if not next(chars) then factions[faction] = nil end
+        end
+        if not next(factions) then db.realms[realm] = nil end
+    end
+end
+
+-- Records the current character once its name is known; returns true when done.
+local function RegisterCharacter(db)
+    local name = UnitName("player")
+    if IsUnknownName(name) then return false end
+    playerName = name
     playerRealm = GetRealmName()
     playerFaction = UnitFactionGroup("player") or "Neutral"
     playerClass = select(2, UnitClass("player"))
 
-    local realm = self.db.realms[playerRealm] or {}
-    self.db.realms[playerRealm] = realm
+    PurgeUnknown(db)
+    local realm = db.realms[playerRealm] or {}
+    db.realms[playerRealm] = realm
     realm[playerFaction] = realm[playerFaction] or {}
-    if playerFaction ~= "Neutral" and realm.Neutral then realm.Neutral[playerName] = nil end
+    if playerFaction ~= "Neutral" and realm.Neutral then
+        realm.Neutral[playerName] = nil
+        if not next(realm.Neutral) then realm.Neutral = nil end
+    end
 
     charData = realm[playerFaction][playerName] or { bags = {}, bank = {}, equipped = {} }
     charData.class = playerClass
     realm[playerFaction][playerName] = charData
-
-    BuildContainerLists()
-    HookTooltips()
     ScanBags()
+    return true
+end
+
+function M:OnLogin()
+    BuildContainerLists()
+    if not RegisterCharacter(self.db) then
+        local w = CreateFrame("Frame")
+        w:RegisterEvent("PLAYER_ENTERING_WORLD")
+        w:RegisterUnitEvent("UNIT_NAME_UPDATE", "player")
+        w:SetScript("OnEvent", function(frame)
+            if RegisterCharacter(M.db) then frame:UnregisterAllEvents() end
+        end)
+    end
+
+    HookTooltips()
 
     SLASH_CFSTASH1 = "/stash"
     SlashCmdList.CFSTASH = function(msg) M:slash(msg) end
@@ -363,7 +403,7 @@ function M:OnLogin()
             ScanBags()
             if bankOpen then ScanBank() end
         elseif event == "PLAYER_EQUIPMENT_CHANGED" then
-            charData.equipped = ScanEquipped()
+            if charData then charData.equipped = ScanEquipped() end
         elseif event == "BANKFRAME_OPENED" then
             OnBankOpened()
         elseif event == "BANKFRAME_CLOSED" then
@@ -472,7 +512,7 @@ local function RefreshChars(p)
     if M.db.allCharacters then
         p.title:SetText("All rulesets and factions")
     else
-        p.title:SetText(playerRealm .. C(GREY, "  ·  " .. playerFaction))
+        p.title:SetText((playerRealm or "") .. C(GREY, "  ·  " .. (playerFaction or "")))
     end
     local rows = {}
     local sel = p.selected
