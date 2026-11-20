@@ -237,9 +237,17 @@ local function OnLootOpened()
     end
 end
 
+-- UnitIsAFK can return a secret boolean (in combat or restricted content), and
+-- testing a secret in an `if` raises an error. Secret means "can't tell": not AFK.
+local function IsAFK()
+    local afk = UnitIsAFK("player")
+    if issecretvalue and issecretvalue(afk) then return false end
+    return afk
+end
+
 -- One second of play: counts toward session and zone time unless AFK.
 local function Tick()
-    if UnitIsAFK("player") then return end
+    if IsAFK() then return end
     local s = Session()
     s.active = s.active + 1
     local zone = CurrentZoneName()
