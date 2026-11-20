@@ -257,10 +257,37 @@ local function HookMail()
     if RepairAllItems then hooksecurefunc("RepairAllItems", function() Override("repair", 3) end) end
 end
 
+-- WoW Forever reports the player's name as UNKNOWNOBJECT ("Unknown") early in
+-- loading, sometimes still at PLAYER_LOGIN, which tagged sessions as
+-- "Unknown-<ruleset>". Wait for the real name before setting playerKey.
+local function IsUnknownName(n)
+    return not n or n == "" or n == UNKNOWNOBJECT or n == "Unknown"
+end
+
+local function IsUnknownKey(k)
+    return not k or IsUnknownName(k:match("^[^-]*"))
+end
+
+-- Sets playerKey once the name is known and fills in the current session if
+-- it was started before then; returns true when done.
+local function RegisterCharacter()
+    if playerKey then return true end
+    local name = UnitName("player")
+    if IsUnknownName(name) then return false end
+    playerKey = name .. "-" .. GetRealmName()
+    playerClass = playerClass or select(2, UnitClass("player"))
+    local s = charDB.session
+    if s and IsUnknownKey(s.char) then
+        s.char = playerKey
+        s.class = s.class or playerClass
+    end
+    return true
+end
+
 function M:OnLogin()
     db, charDB = self.db, self.char
-    playerKey = UnitName("player") .. "-" .. GetRealmName()
     playerClass = select(2, UnitClass("player"))
+    RegisterCharacter()
     lastMoney = GetMoney()
 
     HookMail()
@@ -283,6 +310,7 @@ function M:OnLogin()
                          "ZONE_CHANGED_NEW_AREA" }) do
         f:RegisterEvent(e)
     end
+    if not playerKey then f:RegisterUnitEvent("UNIT_NAME_UPDATE", "player") end
     f:SetScript("OnEvent", function(_, event, ...)
         if event == "PLAYER_MONEY" then
             OnMoney()
@@ -296,7 +324,10 @@ function M:OnLogin()
             OnLootOpened()
         elseif event == "QUEST_TURNED_IN" then
             Override("quests", 2)
+        elseif event == "UNIT_NAME_UPDATE" then
+            if RegisterCharacter() then f:UnregisterEvent("UNIT_NAME_UPDATE") end
         elseif event == "PLAYER_ENTERING_WORLD" then
+            if RegisterCharacter() then f:UnregisterEvent("UNIT_NAME_UPDATE") end
             local isInitialLogin = ...
             if isInitialLogin then
                 Archive()        -- last time's session goes to history
