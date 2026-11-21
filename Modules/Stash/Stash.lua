@@ -45,7 +45,11 @@ end
 ---------------------------------------------------------------------------
 -- Containers
 ---------------------------------------------------------------------------
+-- WoW Forever has a keyring, and its character bank is a set of tabs
+-- (CharacterBankTab_N) rather than the old bank + bank bags.
 local BAGS, BANK, WARBAND = {}, {}, {}
+local IN_BAGS, IN_BANK, IN_WARBAND = {}, {}, {}
+local bankIsTabs = false
 
 local function BuildContainerLists()
     local E = Enum and Enum.BagIndex
@@ -53,66 +57,211 @@ local function BuildContainerLists()
         for i = 0, 4 do BAGS[#BAGS + 1] = i end
         BANK[#BANK + 1] = -1
         for i = 5, 11 do BANK[#BANK + 1] = i end
-        return
-    end
-    for key, id in pairs(E) do
-        if key == "Backpack" or key:match("^Bag_%d+$") or key == "ReagentBag" then
-            BAGS[#BAGS + 1] = id
-        elseif key:match("^CharacterBankTab_%d+$") or key == "Bank"
-            or key:match("^BankBag_%d+$") or key == "Reagentbank" then
-            BANK[#BANK + 1] = id
-        elseif key:match("^AccountBankTab_%d+$") then
-            WARBAND[#WARBAND + 1] = id
+    else
+        local tabs, legacy = {}, {}
+        for key, id in pairs(E) do
+            if key == "Backpack" or key:match("^Bag_%d+$") or key == "ReagentBag" or key == "Keyring" then
+                BAGS[#BAGS + 1] = id
+            elseif key:match("^CharacterBankTab_%d+$") then
+                tabs[#tabs + 1] = id
+            elseif key == "Bank" or key:match("^BankBag_%d+$") or key == "Reagentbank" then
+                legacy[#legacy + 1] = id
+            elseif key:match("^AccountBankTab_%d+$") then
+                WARBAND[#WARBAND + 1] = id
+            end
         end
+        -- Bank tabs replace the old bank; don't read both.
+        bankIsTabs = #tabs > 0
+        for _, id in ipairs(bankIsTabs and tabs or legacy) do BANK[#BANK + 1] = id end
     end
+    table.sort(BAGS); table.sort(BANK); table.sort(WARBAND)
+    for _, id in ipairs(BAGS) do IN_BAGS[id] = true end
+    for _, id in ipairs(BANK) do IN_BANK[id] = true end
+    for _, id in ipairs(WARBAND) do IN_WARBAND[id] = true end
 end
 
-local function ScanContainers(list)
-    local counts, slots = {}, 0
-    for _, bag in ipairs(list) do
-        local n = C_Container.GetContainerNumSlots(bag) or 0
-        slots = slots + n
-        for slot = 1, n do
-            local info = C_Container.GetContainerItemInfo(bag, slot)
-            if info and info.itemID then
-                counts[info.itemID] = (counts[info.itemID] or 0) + (info.stackCount or 1)
+local function NumSlots(bag)
+    if Enum.BagIndex and bag == Enum.BagIndex.Keyring and GetKeyRingSize then
+        return GetKeyRingSize() or 0
+    end
+    return C_Container.GetContainerNumSlots(bag) or 0
+end
+
+-- Whether the Warband bank can be read right now. It can be locked, or not
+-- exist at all (WoW Forever), even while a banker is open. The character
+-- bank is always readable while open; ScanContainer copes with empty tabs.
+local function CanSeeBank(kind)
+    if kind == "Character" then return true end
+    local T = Enum.BankType
+    if not (C_Bank and T and T.Account) then return false end
+    if C_Bank.FetchBankLockedReason then return C_Bank.FetchBankLockedReason(T.Account) == nil end
+    if C_Bank.CanViewBank then return C_Bank.CanViewBank(T.Account) and true or false end
+    return true
+end
+
+-- Counts one container. Returns nil if any item in it hasn't loaded yet
+-- (we keep the old counts and try again instead of dropping the item).
+local waitingForItems = false
+local function ScanContainer(bag, force)
+    local counts = {}
+    local complete = true
+    for slot = 1, NumSlots(bag) do
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if info and info.itemID then
+            counts[info.itemID] = (counts[info.itemID] or 0) + (info.stackCount or 1)
+        else
+            local loc = ItemLocation and ItemLocation:CreateFromBagAndSlot(bag, slot)
+            if loc and C_Item.DoesItemExist(loc) then
+                local id = C_Item.GetItemID(loc)
+                local n = C_Item.GetStackCount and C_Item.GetStackCount(loc)
+                if id and n then
+                    counts[id] = (counts[id] or 0) + n
+                else
+                    complete = false
+                    if id and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+                end
             end
         end
     end
-    return counts, slots
-end
-
-local function ScanEquipped()
-    local counts = {}
-    for slot = 1, 19 do
-        local id = GetInventoryItemID("player", slot)
-        if id then counts[id] = (counts[id] or 0) + 1 end
+    if not complete and not force then
+        waitingForItems = true
+        return nil
     end
     return counts
 end
 
-local function ScanBags()
-    if not charData then return end
-    charData.bags = ScanContainers(BAGS)
-    charData.equipped = ScanEquipped()
-    charData.lastSeen = time()
+local function Merge(parts, list)
+    local total = {}
+    for _, bag in ipairs(list) do
+        local c = parts[bag]
+        if c then for id, n in pairs(c) do total[id] = (total[id] or 0) + n end end
+    end
+    return total
 end
 
-local function ScanBank()
-    if not charData or not bankOpen then return end
-    local counts, slots = ScanContainers(BANK)
-    if slots > 0 then
-        charData.bank = counts
-        charData.bankScanned = true
+-- Everything worn, plus the ammo slot (0) on WoW Forever. Bags aren't counted.
+local function ScanEquipped()
+    local counts = {}
+    local last = C_Container.ContainerIDToInventoryID and C_Container.ContainerIDToInventoryID(1)
+    last = (last or 20) - 1
+    for slot = 0, last do
+        local id = GetInventoryItemID("player", slot)
+        if id then
+            local n = slot == 0 and GetInventoryItemCount("player", slot) or 1
+            counts[id] = (counts[id] or 0) + math.max(n or 1, 1)
+        end
     end
-    local wb, wbSlots = ScanContainers(WARBAND)
-    if wbSlots > 0 then M.db.warband = wb end
+    return counts
+end
+
+---------------------------------------------------------------------------
+-- Scanning: events mark containers as dirty, one pass on the next frame
+-- rescans just those. Bank containers only count while the bank is open
+-- (or right after crafting, which can use reagents from the bank).
+---------------------------------------------------------------------------
+local pending = { bags = {}, bank = {}, warband = {}, equipped = false }
+local scanner = CreateFrame("Frame")
+local lastCraft = 0
+local retries, MAX_RETRIES = 0, 10
+local CRAFT_WINDOW = 2
+
+-- Bank tabs stay readable after a craft that used bank reagents; the old
+-- bank can only be read while it's open.
+local function BankReadable()
+    return bankOpen or (bankIsTabs and GetTime() - lastCraft < CRAFT_WINDOW)
+end
+
+local function Flush()
+    scanner:SetScript("OnUpdate", nil)
+    if not charData then return end   -- not registered yet; pending stays queued
+    waitingForItems = false
+    local force = retries >= MAX_RETRIES
+    local retry = { bags = {}, bank = {}, warband = {} }
+
+    if next(pending.bags) then
+        charData.bagParts = charData.bagParts or {}
+        for bag in pairs(pending.bags) do
+            local c = ScanContainer(bag, force)
+            if c then charData.bagParts[bag] = c else retry.bags[bag] = true end
+        end
+        -- Until every bag has been read once, keep the counts we already had.
+        local all = true
+        for _, bag in ipairs(BAGS) do if not charData.bagParts[bag] then all = false end end
+        if all then charData.bags = Merge(charData.bagParts, BAGS) end
+    end
+
+    if next(pending.bank) then
+        local first = not charData.bankParts
+        local parts = charData.bankParts or {}
+        local seen = false
+        for bag in pairs(pending.bank) do
+            if NumSlots(bag) > 0 then
+                local c = ScanContainer(bag, force)
+                if c then parts[bag] = c; seen = true else retry.bank[bag] = true end
+            end
+        end
+        -- Don't replace a bank recorded the old way until we've read it properly.
+        if seen and (not first or bankOpen) then
+            charData.bankParts = parts
+            charData.bank = Merge(parts, BANK)
+            charData.bankScanned = true
+        end
+    end
+
+    if next(pending.warband) then
+        local parts = M.db.warbandParts or {}
+        local seen = false
+        for bag in pairs(pending.warband) do
+            if NumSlots(bag) > 0 then
+                local c = ScanContainer(bag, force)
+                if c then parts[bag] = c; seen = true else retry.warband[bag] = true end
+            end
+        end
+        if seen and (M.db.warbandParts or bankOpen) then
+            M.db.warbandParts = parts
+            M.db.warband = Merge(parts, WARBAND)
+        end
+    end
+
+    if pending.equipped then charData.equipped = ScanEquipped() end
+    charData.lastSeen = time()
+
+    pending.bags, pending.bank, pending.warband, pending.equipped = {}, {}, {}, false
+    if not waitingForItems then
+        retries = 0
+    else
+        -- Some items hadn't loaded; look again shortly (after a few tries,
+        -- take what we have).
+        retries = retries + 1
+        C_Timer.After(0.5, function()
+            for k in pairs(retry.bags) do pending.bags[k] = true end
+            if bankOpen then
+                for k in pairs(retry.bank) do pending.bank[k] = true end
+                for k in pairs(retry.warband) do pending.warband[k] = true end
+            end
+            scanner:SetScript("OnUpdate", Flush)
+        end)
+    end
+end
+
+local function Queue() scanner:SetScript("OnUpdate", Flush) end
+
+local function QueueAll(list, set)
+    for _, bag in ipairs(list) do set[bag] = true end
+end
+
+local function QueueBank()
+    if not BankReadable() then return end
+    if CanSeeBank("Character") then QueueAll(BANK, pending.bank) end
+    if CanSeeBank("Account") then QueueAll(WARBAND, pending.warband) end
+    Queue()
 end
 
 local function OnBankOpened()
     bankOpen = true
-    ScanBank()
-    C_Timer.After(0.5, ScanBank)
+    QueueBank()
+    -- Tabs can arrive a moment after the bank opens.
+    C_Timer.After(1, QueueBank)
 end
 
 ---------------------------------------------------------------------------
@@ -274,8 +423,9 @@ local function DeleteChar(query)
     local found = {}
     for realm, factions in pairs(M.db.realms) do
         for faction, chars in pairs(factions) do
-            for name in pairs(chars) do
-                if name:lower() == qName and (not qRealm or realm:lower() == qRealm) then
+            for name, d in pairs(chars) do
+                local first = d.firstName and d.firstName:lower()
+                if (name:lower() == qName or first == qName) and (not qRealm or realm:lower() == qRealm) then
                     found[#found + 1] = { realm, faction, name }
                 end
             end
@@ -345,11 +495,24 @@ local function PurgeUnknown(db)
     end
 end
 
+-- WoW Forever names are unique per region as first name + surname, so two
+-- characters can share a first name. Key by the full name when there is one.
+local function FullName()
+    local name, surname = UnitName("player")
+    if IsUnknownName(name) then return nil end
+    if RegionalUniqueNamesEnabled and RegionalUniqueNamesEnabled() and surname and surname ~= "" then
+        local sep = Constants and Constants.CharacterNameSeparatorConsts
+            and Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR or " "
+        return name .. sep .. surname, name
+    end
+    return name, name
+end
+
 -- Records the current character once its name is known; returns true when done.
 local function RegisterCharacter(db)
-    local name = UnitName("player")
-    if IsUnknownName(name) then return false end
-    playerName = name
+    local key, firstName = FullName()
+    if not key then return false end
+    playerName = key
     playerRealm = GetRealmName()
     playerFaction = UnitFactionGroup("player") or "Neutral"
     playerClass = select(2, UnitClass("player"))
@@ -358,15 +521,25 @@ local function RegisterCharacter(db)
     local realm = db.realms[playerRealm] or {}
     db.realms[playerRealm] = realm
     realm[playerFaction] = realm[playerFaction] or {}
+    local chars = realm[playerFaction]
     if playerFaction ~= "Neutral" and realm.Neutral then
         realm.Neutral[playerName] = nil
+        realm.Neutral[firstName] = nil
         if not next(realm.Neutral) then realm.Neutral = nil end
     end
+    -- Data saved under the first name alone, before surnames were used.
+    if key ~= firstName and chars[firstName] and not chars[key] then
+        chars[key], chars[firstName] = chars[firstName], nil
+    end
 
-    charData = realm[playerFaction][playerName] or { bags = {}, bank = {}, equipped = {} }
+    charData = chars[key] or { bags = {}, bank = {}, equipped = {} }
     charData.class = playerClass
-    realm[playerFaction][playerName] = charData
-    ScanBags()
+    charData.firstName = firstName
+    chars[key] = charData
+
+    QueueAll(BAGS, pending.bags)
+    pending.equipped = true
+    Queue()
     return true
 end
 
@@ -387,35 +560,51 @@ function M:OnLogin()
     SlashCmdList.CFSTASH = function(msg) M:slash(msg) end
 
     local f = CreateFrame("Frame")
-    f:RegisterEvent("BAG_UPDATE_DELAYED")
-    f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-    f:RegisterEvent("BANKFRAME_OPENED")
-    f:RegisterEvent("BANKFRAME_CLOSED")
-    f:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
-    if C_EventUtils and C_EventUtils.IsEventValid then
-        for _, ev in ipairs({ "PLAYERREAGENTBANKSLOTS_CHANGED", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW",
-                              "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
-            if C_EventUtils.IsEventValid(ev) then f:RegisterEvent(ev) end
+    local function Try(ev)
+        if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid(ev) then
+            pcall(f.RegisterEvent, f, ev)
         end
     end
-    f:SetScript("OnEvent", function(_, event, ...)
-        if event == "BAG_UPDATE_DELAYED" then
-            ScanBags()
-            if bankOpen then ScanBank() end
-        elseif event == "PLAYER_EQUIPMENT_CHANGED" then
-            if charData then charData.equipped = ScanEquipped() end
+    for _, ev in ipairs({
+        "BAG_UPDATE", "BAG_UPDATE_DELAYED", "BAG_CONTAINER_UPDATE",
+        "PLAYER_EQUIPMENT_CHANGED",
+        "BANKFRAME_OPENED", "BANKFRAME_CLOSED",
+        "PLAYERBANKSLOTS_CHANGED", "PLAYERREAGENTBANKSLOTS_CHANGED",
+        "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED", "BANK_TABS_CHANGED", "BANK_TAB_SETTINGS_UPDATED",
+        "TRADE_SKILL_ITEM_CRAFTED_RESULT",
+        "PLAYER_INTERACTION_MANAGER_FRAME_HIDE",
+    }) do Try(ev) end
+    f:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player")
+
+    f:SetScript("OnEvent", function(_, event, arg1)
+        if event == "BAG_UPDATE" then
+            if IN_BAGS[arg1] then
+                pending.bags[arg1] = true
+            elseif IN_BANK[arg1] and BankReadable() and CanSeeBank("Character") then
+                pending.bank[arg1] = true
+            elseif IN_WARBAND[arg1] and BankReadable() and CanSeeBank("Account") then
+                pending.warband[arg1] = true
+            end
+            Queue()
+        elseif event == "BAG_UPDATE_DELAYED" or event == "BAG_CONTAINER_UPDATE" then
+            QueueAll(BAGS, pending.bags)
+            Queue()
+            if event == "BAG_CONTAINER_UPDATE" and bankOpen then QueueBank() end
+        elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "UNIT_INVENTORY_CHANGED" then
+            pending.equipped = true
+            Queue()
         elseif event == "BANKFRAME_OPENED" then
             OnBankOpened()
         elseif event == "BANKFRAME_CLOSED" then
             bankOpen = false
-        elseif event == "PLAYERBANKSLOTS_CHANGED" or event == "PLAYERREAGENTBANKSLOTS_CHANGED" then
-            ScanBank()
-        else
-            local kind = ...
+        elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
             local T = Enum.PlayerInteractionType
-            if T and (kind == T.Banker or kind == T.AccountBanker) then
-                if event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then OnBankOpened() else bankOpen = false end
-            end
+            if T and (arg1 == T.Banker or arg1 == T.AccountBanker) then bankOpen = false end
+        elseif event == "TRADE_SKILL_ITEM_CRAFTED_RESULT" then
+            lastCraft = GetTime()
+        else
+            -- Bank slots or tabs changed (or a craft took reagents from the bank).
+            QueueBank()
         end
     end)
 end
