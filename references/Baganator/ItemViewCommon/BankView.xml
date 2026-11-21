@@ -1,0 +1,16 @@
+<Ui>
+  <Frame name="BaganatorItemViewCommonBankViewTemplate" virtual="true" hidden="true" topLevel="true" enableMouse="true" inherits="ButtonFrameTemplate" mixin="BaganatorItemViewCommonBankViewMixin">
+    <Scripts>
+      <OnLoad method="OnLoad"/>
+      <OnEvent method="OnEvent"/>
+      <OnShow method="OnShow"/>
+      <OnHide method="OnHide"/>
+      <OnDragStart method="OnDragStart"/>
+      <OnDragStop method="OnDragStop"/>
+    </Scripts>
+    <Frames>
+      <Frame parentKey="SearchWidget" inherits="BaganatorSearchWidgetTemplate"/>
+      <Frame parentKey="ButtonVisibility" inherits="BaganatorItemViewButtonVisibilityTemplate"/>
+    </Frames>
+  </Frame>
+</Ui>

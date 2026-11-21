@@ -1,0 +1,276 @@
+---@class addonTableBaganator
+local addonTable = select(2, ...)
+
+BaganatorCategoryViewBackpackViewMixin = CreateFromMixins(BaganatorItemViewCommonBackpackViewMixin)
+
+function BaganatorCategoryViewBackpackViewMixin:OnLoad()
+  BaganatorItemViewCommonBackpackViewMixin.OnLoad(self)
+
+  if addonTable.Constants.IsGamepadInUse then
+    local bindings = {
+      {
+        button = GAMEPAD_FACE_BOTTOM, label = ACTION_LABEL_SELECT, visibility = "auto",
+        condition = function()
+          return addonTable.ItemButtonUtil.GetGamepadFocus() ~= nil
+        end,
+      },
+      {
+        button = GAMEPAD_FACE_LEFT, label = CONTEXT_ACTION_LABEL_USE, visibility = "auto",
+        condition = function()
+          return addonTable.ItemButtonUtil.GetGamepadFocus() ~= nil and addonTable.ItemButtonUtil.GetGamepadFocus().frame.BGR.itemLink ~= nil
+        end,
+      },
+      {
+        button = GAMEPAD_FACE_TOP, label = CONTEXT_ACTION_LABEL_MORE_ACTIONS, visibility = "auto",
+        condition = function()
+          return addonTable.ItemButtonUtil.GetGamepadFocus() ~= nil and addonTable.ItemButtonUtil.GetGamepadFocus().frame.BGR.itemLink ~= nil
+        end
+      },
+      {
+        button = GAMEPAD_FACE_LEFT, label = addonTable.Locales.TRANSFER, visibility = "auto",
+        condition = function()
+          return (addonTable.CategoryViews.GetFocussedCategoryIndex() ~= nil or addonTable.CategoryViews.GetFocussedSectionIndex() ~= nil)
+            and self:IsTransferActive()
+        end
+      },
+      {
+        button = GAMEPAD_FACE_BOTTOM, label = addonTable.Locales.CLEAR_RECENTS, visibility = "auto",
+        condition = function()
+          return addonTable.CategoryViews.GetFocussedCategoryIndex() ~= nil and SmartNavigation:GetCurrentButton().source == addonTable.CategoryViews.Constants.RecentItemsCategory
+        end
+      },
+      {
+        button = GAMEPAD_FACE_BOTTOM, label = addonTable.Locales.TOGGLE, visibility = "auto",
+        condition = function()
+          return addonTable.CategoryViews.GetFocussedSectionIndex() ~= nil
+        end
+      },
+      {
+        isBack = true, label = CLOSE
+      }
+    }
+    self.gamepadFooter = addonTable.Gamepad.GetBindingsFooter(bindings, self)
+  end
+
+  self.Container.Layouts = {}
+  self.LiveLayouts = {}
+  self.CachedLayouts = {}
+
+  self.splitStacksDueToSocketing = false
+
+  self.LayoutManager = CreateFrame("Frame", nil, self)
+  Mixin(self.LayoutManager, addonTable.CategoryViews.BagLayoutMixin)
+  self.LayoutManager:OnLoad()
+  self.location = "backpack"
+
+  self:RegisterEvent("CURSOR_CHANGED")
+  self:RegisterEvent("MODIFIER_STATE_CHANGED")
+
+  addonTable.CallbackRegistry:RegisterCallback("ForceClearedNewItems",  function()
+    if self:IsVisible() and self.lastCharacter ~= nil and self.isLive then
+      self.refreshState[addonTable.Constants.RefreshReason.Searches] = true
+      self.refreshState[addonTable.Constants.RefreshReason.Layout] = true
+      self:UpdateForCharacter(self.lastCharacter, self.isLive)
+    end
+  end)
+
+  addonTable.CallbackRegistry:RegisterCallback("CategoryAddItemStart", function(_, fromCategory, itemID, itemLink, addedDirectly)
+    self.addToCategoryMode = fromCategory
+    self.addedToFromCategory = addedDirectly == true
+    if self:IsVisible() and addonTable.CategoryViews.Utilities.GetAddButtonsState() then
+      self.refreshState[addonTable.Constants.RefreshReason.Layout] = true
+      self:UpdateForCharacter(self.lastCharacter, self.isLive)
+    end
+  end)
+
+  addonTable.AddBagTransferActivationCallback(function()
+    self.ButtonsManager:Arrange()
+    local oldState = self.splitStacksDueToTransfer
+    self.splitStacksDueToTransfer = false
+    for _, info in ipairs(addonTable.BagTransfers) do
+      if info.condition() then
+        self.splitStacksDueToTransfer = true
+      end
+    end
+    if oldState ~= self.splitStacksDueToTransfer and self:IsVisible() then
+      self:UpdateForCharacter(self.lastCharacter, self.isLive)
+    end
+  end)
+
+  addonTable.CallbackRegistry:RegisterCallback("ItemContextChanged",  function()
+    local oldSplit = self.splitStacksDueToSocketing
+    self.splitStacksDueToSocketing = addonTable.Compatibility.Context.Socket
+    if self.splitStacksDueToSocketing ~= oldSplit and self:IsVisible() then
+      self:UpdateForCharacter(self.lastCharacter, self.isLive)
+    end
+  end)
+end
+
+function BaganatorCategoryViewBackpackViewMixin:NotifyBagUpdate(updatedBags)
+  --self.LayoutManager:NotifyBagUpdate(updatedBags.bags)
+end
+
+function BaganatorCategoryViewBackpackViewMixin:OnEvent(eventName)
+  if eventName == "CURSOR_CHANGED" and self.addToCategoryMode and not C_Cursor.GetCursorItem() then
+    self.addToCategoryMode = nil
+    if self:IsVisible() then
+      self.refreshState[addonTable.Constants.RefreshReason.Layout] = true
+      self:UpdateForCharacter(self.lastCharacter, self.isLive)
+    end
+  elseif eventName == "MODIFIER_STATE_CHANGED" and self.addToCategoryMode and (addonTable.CategoryViews.Utilities.GetAddButtonsState() or self.LayoutManager.showAddButtons) and C_Cursor.GetCursorItem() then
+    self.refreshState[addonTable.Constants.RefreshReason.Layout] = true
+    self:UpdateForCharacter(self.lastCharacter, self.isLive)
+  end
+end
+
+function BaganatorCategoryViewBackpackViewMixin:OnShow()
+  BaganatorItemViewCommonBackpackViewMixin.OnShow(self)
+  if addonTable.NewItems:ClearNewItemsForTimeout() then
+    self.refreshState[addonTable.Constants.RefreshReason.ItemData] = true -- Change to more relevant refresh state
+  end
+end
+
+-- Clear new item status on items that are hidden as part of a stack
+function BaganatorCategoryViewBackpackViewMixin:OnHide()
+  BaganatorItemViewCommonBackpackViewMixin.OnHide(self)
+end
+
+function BaganatorCategoryViewBackpackViewMixin:ApplySearch(text)
+  if not self:IsVisible() then
+    return
+  end
+  self.searchToApply = false
+
+  for _, layout in ipairs(self.Container.Layouts) do
+    if layout:IsVisible() then
+      layout:ApplySearch(text)
+    end
+  end
+end
+
+function BaganatorCategoryViewBackpackViewMixin:GetSearchMatches()
+  local matches = {}
+  for _, layouts in ipairs(self.LiveLayouts) do
+    tAppendAll(matches, layouts.SearchMonitor:GetMatches())
+  end
+  return matches
+end
+
+function BaganatorCategoryViewBackpackViewMixin:GetActiveLayouts()
+  return self.activeLayouts
+end
+
+function BaganatorCategoryViewBackpackViewMixin:TransferCategory(sourceKey)
+  if not self.isLive then
+    return
+  end
+
+  self:Transfer(true, function() return self.layoutsBySourceKey[sourceKey] and self.layoutsBySourceKey[sourceKey].SearchMonitor:GetMatches() or {} end)
+end
+
+function BaganatorCategoryViewBackpackViewMixin:TransferSection(tree)
+  if not self.isLive then
+    return
+  end
+
+  self:Transfer(true, function()
+    local matches = {}
+    for _, layout in ipairs(self:GetActiveLayouts()) do
+      if layout.type == "category" then
+        local rootMatch = true
+        for index, label in ipairs(tree) do
+          rootMatch = layout.section[index] == label
+          if not rootMatch then
+            break
+          end
+        end
+        if rootMatch then
+          tAppendAll(matches, layout.SearchMonitor:GetMatches())
+        end
+      end
+    end
+
+    return matches
+  end)
+end
+
+function BaganatorCategoryViewBackpackViewMixin:UpdateForCharacter(character, isLive)
+  local start = debugprofilestop()
+  BaganatorItemViewCommonBackpackViewMixin.UpdateForCharacter(self, character, isLive)
+
+  if self.isLive then
+    addonTable.NewItems:ImportNewItems(true)
+  end
+
+  local sideSpacing, topSpacing = addonTable.Utilities.GetSpacing()
+
+  local oldIsGrouping = self.isGrouping
+  self.isGrouping = addonTable.Config.Get(addonTable.Config.Options.CATEGORY_ITEM_GROUPING) and (not self.splitStacksDueToTransfer and not self.splitStacksDueToSocketing or not self.isLive)
+  if self.isGrouping ~= oldIsGrouping then
+    self.refreshState[addonTable.Constants.RefreshReason.Layout] = true
+    self.searchToApply = true
+  end
+
+  if self.addToCategoryMode and C_Cursor.GetCursorItem() == nil then
+    self.addToCategoryMode = nil
+  end
+
+  local characterData = Syndicator.API.GetCharacter(character)
+
+  if not characterData then
+    addonTable.CallbackRegistry:TriggerEvent("ViewComplete")
+    return
+  end
+
+  local bagTypes = addonTable.CategoryViews.Utilities.GetBagTypes(characterData, "bags", Syndicator.Constants.AllBagIndexes, -1)
+  local bagWidth = addonTable.Config.Get(addonTable.Config.Options.BAG_VIEW_WIDTH)
+
+  self.LayoutManager:Layout(characterData.bags, bagWidth, bagTypes, Syndicator.Constants.AllBagIndexes, sideSpacing, topSpacing, function(maxWidth, maxHeight, firstVisible, lastVisible)
+    self.Container:SetSize(
+      math.max(addonTable.CategoryViews.Utilities.GetMinWidth(bagWidth), maxWidth),
+      maxHeight
+    )
+
+    local lastButton = self.CurrencyButton
+    lastButton:ClearAllPoints()
+    lastButton:SetPoint("BOTTOM", self, "BOTTOM", 0, 6)
+    lastButton:SetPoint("LEFT", self.Container, -2, 0)
+
+    self.ButtonsManager:ClearButtons(true)
+    self.ButtonsManager:AddButton(self.CurrencyButton)
+
+    local buttonsWidth = lastButton:GetWidth() + addonTable.Utilities.AddButtons(
+      lastButton, self, 5, addonTable.API.customRegions["backpack"]["bottom_left"]
+    )
+
+    self.CurrencyWidget:UpdateCurrencyTextPositions(self.Container:GetWidth() - buttonsWidth - 10, self.Container:GetWidth())
+
+    self:OnFinished()
+
+    local searchText = self.SearchWidget.SearchBox:GetText()
+    if self.searchToApply then
+      self.searchToApply = false
+      self:ApplySearch(searchText)
+    end
+
+    if addonTable.Config.Get(addonTable.Config.Options.DEBUG_TIMERS) then
+      addonTable.Utilities.DebugOutput("-- updateforcharacter backpack", debugprofilestop() - start)
+    end
+
+    self.refreshState = {}
+
+    self.SearchWidget:LinkDown(firstVisible)
+    self.CurrencyWidget:AddGamepadUp(lastVisible)
+    self.CurrencyWidget:AddGamepadLeft(self.CurrencyButton)
+
+    addonTable.CategoryViews.ComputeGamepadGrid(self.activeLayouts, self.SearchWidget.SearchBox, {self.CurrencyButton}, function(b)
+      self.CurrencyWidget:AddGamepadUp(b)
+    end)
+
+    addonTable.CallbackRegistry:TriggerEvent("ViewComplete")
+  end)
+end
+
+if table.freeze then
+  table.freeze(BaganatorCategoryViewBackpackViewMixin)
+end
