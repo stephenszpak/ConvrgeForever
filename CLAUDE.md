@@ -16,6 +16,10 @@ A World of Warcraft addon for **WoW Forever** (TOC `## Interface: 16000`), bundl
 - Group Finder (`Modules/LFG/`): Classic-style UI (`LFGListingFrame`) over `C_LFGList`. Quests aren't linked to activities (`GetActivityIDForQuestID` is nil); Quests & Zones (category 116) has one activity per zone and Dungeons (category 2) one per dungeon, so match by quest log header. Group quests are found by `C_QuestLog.GetQuestTagInfo` tag (1 Elite, 81 Dungeon); `suggestedGroup` is always 0. `C_LFGList.Search` needs a click. Only `C_QuestLog` exists, not the old quest log globals.
 - WoW Forever uses the modern auction house API (`C_AuctionHouse`, commodities): search, `StartCommoditiesPurchase` for the price, `ConfirmCommoditiesPurchase` on a click.
 
+## Pull requests
+
+- Claude may merge its own pull requests into `main` without asking, as long as the PR has no merge conflicts and its checks (if any) pass. Share the PR link after merging.
+
 ## Checking changes
 
 There's no WoW client here, so changes can't be run. To at least syntax-check a file:
