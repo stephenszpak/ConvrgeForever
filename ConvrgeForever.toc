@@ -1,6 +1,6 @@
 ## Interface: 16000
 ## Title: ConvrgeForever
-## Notes: Lightweight modules for WoW Forever: Stash, Fishing, Carrot (mount trinket swap), Gold tracking and Professions leveling.
+## Notes: Lightweight modules for WoW Forever: Stash, Fishing, Carrot (mount trinket swap), Gold tracking, Professions leveling and LFG for group quests.
 ## Author: You
 ## Version: 1.0.0
 ## SavedVariables: ConvrgeForeverDB
@@ -27,3 +27,5 @@ Modules\Gold\GoldUI.lua
 Modules\Professions\Data.lua
 Modules\Professions\Professions.lua
 Modules\Professions\Buyer.lua
+
+Modules\LFG\LFG.lua
