@@ -393,16 +393,16 @@ local function UpdateEyes()
         if b:IsShown() and KindOf(questID) then
             -- Right after the quest name, like Retail: the right edge holds
             -- the tracking checkmark and the "(Elite)" tag.
+            -- Only the button showing the quest name: other buttons in the
+            -- row (the quest icon on the left) also carry the questID.
             local text = b.Text or b:GetFontString()
-            if text then
+            if text and (text:GetText() or "") ~= "" then
                 local e = Eye(b)
                 e.questID = questID
                 e:ClearAllPoints()
                 local w = math.min(text:GetStringWidth() or 0, text:GetWidth() or 0)
                 e:SetPoint("LEFT", text, "LEFT", w + 3, 0)
                 e:Show()
-            else
-                PlaceEye(b, questID, nil)
             end
         end
     end)
