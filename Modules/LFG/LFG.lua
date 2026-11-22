@@ -391,8 +391,19 @@ local function UpdateEyes()
 
     ForEachRetailTitle(function(b, questID)
         if b:IsShown() and KindOf(questID) then
-            local tag = b.TagTexture
-            PlaceEye(b, questID, (tag and tag:IsShown()) and tag or nil)
+            -- Right after the quest name, like Retail: the right edge holds
+            -- the tracking checkmark and the "(Elite)" tag.
+            local text = b.Text or b:GetFontString()
+            if text then
+                local e = Eye(b)
+                e.questID = questID
+                e:ClearAllPoints()
+                local w = math.min(text:GetStringWidth() or 0, text:GetWidth() or 0)
+                e:SetPoint("LEFT", text, "LEFT", w + 3, 0)
+                e:Show()
+            else
+                PlaceEye(b, questID, nil)
+            end
         end
     end)
 end
