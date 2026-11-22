@@ -211,13 +211,11 @@ local function Refresh() CF.RefreshCurrent() end
 -- Must run from a click: C_LFGList.Search needs a hardware event.
 local function DoSearch(t)
     target, results = t, {}
-    local ok, err = false, nil
-    -- The classic-style signature takes activity IDs as the second argument;
-    -- the retail-style one takes a filter number there and rejects a table.
-    -- Try the filtered form first, then fall back to the whole category
-    -- (results are filtered by activity below either way).
-    if t.ids and #t.ids > 0 then ok = pcall(C_LFGList.Search, t.cat, t.ids) end
-    if not ok then ok, err = pcall(C_LFGList.Search, t.cat) end
+    -- One call per click: a click allows a single protected call, and a
+    -- failed call uses it up. Forever takes the Retail-style signature
+    -- (a table as the second argument is rejected), so search the whole
+    -- category and filter by activity in CollectResults.
+    local ok, err = pcall(C_LFGList.Search, t.cat)
     status = ok and C(YELLOW, "Searching...") or C(RED, "Search failed: " .. tostring(err))
     Refresh()
 end
