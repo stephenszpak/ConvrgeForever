@@ -311,7 +311,7 @@ local function CollectResults()
 end
 
 ---------------------------------------------------------------------------
--- Quest log eye buttons (Classic-style quest log: QuestLogTitle1..N)
+-- Quest log eye buttons (Retail-style QuestScrollFrame, or Classic QuestLogTitle1..N)
 ---------------------------------------------------------------------------
 local eyes = {}
 M.questLogHooked = false
@@ -343,40 +343,85 @@ local function Eye(btn)
     return e
 end
 
-local function UpdateEyes()
-    local n = QUESTS_DISPLAYED or 27
-    for i = 1, n do
-        local b = _G["QuestLogTitle" .. i]
-        if not b then break end
-        local q, kind
-        if db.questLogButtons and b:IsShown() then
-            local idx = b:GetID()
-            q = idx and idx > 0 and C_QuestLog.GetInfo(idx)
-            kind = q and not q.isHeader and KindOf(q.questID)
-        end
-        if kind then
-            local e = Eye(b)
-            e.questID = q.questID
-            e:ClearAllPoints()
-            local tag = _G[b:GetName() .. "Tag"]
-            if tag and tag:IsShown() and (tag:GetText() or "") ~= "" then
-                e:SetPoint("RIGHT", tag, "LEFT", -2, 0)
-            else
-                e:SetPoint("RIGHT", b, "RIGHT", -2, 0)
+local function PlaceEye(b, questID, anchor)
+    local e = Eye(b)
+    e.questID = questID
+    e:ClearAllPoints()
+    if anchor then
+        e:SetPoint("RIGHT", anchor, "LEFT", -2, 0)
+    else
+        e:SetPoint("RIGHT", b, "RIGHT", -4, 0)
+    end
+    e:Show()
+end
+
+-- Retail-style quest log (what Forever has): quest titles are pooled
+-- Buttons somewhere under QuestScrollFrame, each with a .questID. Headers
+-- and objective lines aren't Buttons with a questID, so they're skipped.
+local function ForEachRetailTitle(fn)
+    local function walk(f, depth)
+        for _, c in ipairs({ f:GetChildren() }) do
+            local id = Plain(c.questID)
+            if type(id) == "number" and c:GetObjectType() == "Button" then
+                fn(c, id)
+            elseif depth < 5 then
+                walk(c, depth + 1)
             end
-            e:Show()
-        elseif eyes[b] then
-            eyes[b]:Hide()
         end
     end
+    if QuestScrollFrame then walk(QuestScrollFrame, 0) end
+end
+
+local function UpdateEyes()
+    -- Hide everything first: pooled buttons get reused for other quests.
+    for _, e in pairs(eyes) do e:Hide() end
+    if not db.questLogButtons then return end
+
+    -- Classic-style quest log: QuestLogTitle1..N, ID = quest log index.
+    for i = 1, (QUESTS_DISPLAYED or 27) do
+        local b = _G["QuestLogTitle" .. i]
+        if not b then break end
+        local idx = b:IsShown() and b:GetID()
+        local q = idx and idx > 0 and C_QuestLog.GetInfo(idx)
+        if q and not q.isHeader and KindOf(q.questID) then
+            local tag = _G[b:GetName() .. "Tag"]
+            PlaceEye(b, q.questID, (tag and tag:IsShown() and (tag:GetText() or "") ~= "") and tag or nil)
+        end
+    end
+
+    ForEachRetailTitle(function(b, questID)
+        if b:IsShown() and KindOf(questID) then
+            local tag = b.TagTexture
+            PlaceEye(b, questID, (tag and tag:IsShown()) and tag or nil)
+        end
+    end)
+end
+
+local pending
+local function QueueEyes()
+    if pending then return end
+    pending = true
+    C_Timer.After(0, function() pending = false; UpdateEyes() end)
 end
 
 local function HookQuestLog()
     if M.questLogHooked then return end
+    local hooked = false
     if type(QuestLog_Update) == "function" then
-        hooksecurefunc("QuestLog_Update", UpdateEyes)
-        M.questLogHooked = true
+        hooksecurefunc("QuestLog_Update", QueueEyes); hooked = true
     end
+    if type(QuestLogQuests_Update) == "function" then
+        hooksecurefunc("QuestLogQuests_Update", QueueEyes); hooked = true
+    end
+    if QuestScrollFrame then
+        QuestScrollFrame:HookScript("OnShow", QueueEyes)
+        local box = QuestScrollFrame.ScrollBox
+        if box and box.RegisterCallback and ScrollBoxListMixin and ScrollBoxListMixin.Event then
+            box:RegisterCallback(ScrollBoxListMixin.Event.OnDataRangeChanged, QueueEyes, M)
+        end
+        hooked = true
+    end
+    M.questLogHooked = hooked
 end
 
 ---------------------------------------------------------------------------
@@ -412,6 +457,7 @@ function M:OnLogin()
             end
         elseif event == "QUEST_LOG_UPDATE" then
             Refresh()
+            if QuestScrollFrame and QuestScrollFrame:IsVisible() then QueueEyes() end
         elseif event == "ADDON_LOADED" then
             HookQuestLog()   -- in case the quest log is load-on-demand
         end
@@ -427,7 +473,11 @@ function M:slash(msg)
         local parts = {}
         for c, n in pairs(cats) do parts[#parts + 1] = "cat " .. c .. ": " .. n end
         CF.Print("activities: " .. #acts .. " (" .. table.concat(parts, ", ") .. ")", "LFG")
-        CF.Print("quest log eye buttons: " .. (M.questLogHooked and "hooked" or "no Classic quest log found"), "LFG")
+        local titles, shown = 0, 0
+        ForEachRetailTitle(function(b) titles = titles + 1 end)
+        for _, e in pairs(eyes) do if e:IsShown() then shown = shown + 1 end end
+        CF.Print(("quest log: %s, %d quest title buttons found, %d eyes showing (open the quest log first)")
+            :format(M.questLogHooked and "hooked" or "not found", titles, shown), "LFG")
         for _, q in ipairs(GroupQuests()) do
             local t = TargetFor(q)
             print(("   %s [%s] under \"%s\" -> %s"):format(q.title, q.kind, tostring(q.header), t.label))
@@ -474,7 +524,7 @@ local function BuildPage(p)
     p.groups:SetPoint("RIGHT")
 
     p.eyeCheck = W.Check(p, "Eye button on group quests in the quest log", function() return db.questLogButtons end,
-        function(v) db.questLogButtons = v end, nil, function() if M.questLogHooked then UpdateEyes() end end)
+        function(v) db.questLogButtons = v end, nil, UpdateEyes)
     p.eyeCheck:SetPoint("BOTTOMLEFT", 0, 0)
     p.eyeCheck:SetWidth(280)
     p.whisperCheck = W.Check(p, "Prefill a whisper when I click a group", function() return db.whisper end,
