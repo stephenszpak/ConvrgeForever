@@ -1,6 +1,6 @@
 # ConvrgeForever
 
-A World of Warcraft addon for **WoW Forever** (TOC `## Interface: 16000`), bundling small modules (Stash, Fishing, Carrot, Gold) under one `/cf` window.
+A World of Warcraft addon for **WoW Forever** (TOC `## Interface: 16000`), bundling small modules (Stash, Fishing, Carrot, Gold, Salt, LFG) under one `/cf` window.
 
 ## WoW Forever specifics
 
