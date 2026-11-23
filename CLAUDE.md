@@ -12,7 +12,6 @@ A World of Warcraft addon for **WoW Forever** (TOC `## Interface: 16000`), bundl
 - `Core/Core.lua`: module registry (`CF:NewModule(key, def)`), saved-variable defaults, legacy-addon migration, slash commands. The header comment documents the module fields.
 - `Core/Widgets.lua`, `Core/Window.lua`: shared UI widgets (`CF.W`) and the settings window.
 - `Modules/<Name>/`: one folder per module. List new files in `ConvrgeForever.toc`.
-- `Modules/Professions/Data.lua` is generated from the wow-professions.com Forever guides by `tools/build_professions.py`; re-run the script instead of editing it. The guides name materials but give no item IDs, so the module matches by name (Stash counts, auction house name search) and caches IDs in `db.itemIDs`.
 - Group Finder (`Modules/LFG/`): Classic-style UI (`LFGListingFrame`) over `C_LFGList`. Quests aren't linked to activities (`GetActivityIDForQuestID` is nil); Quests & Zones (category 116) has one activity per zone and Dungeons (category 2) one per dungeon, so match by quest log header. Group quests are found by `C_QuestLog.GetQuestTagInfo` tag (1 Elite, 81 Dungeon); `suggestedGroup` is always 0. `C_LFGList.Search` needs a click. Only `C_QuestLog` exists, not the old quest log globals.
 - WoW Forever uses the modern auction house API (`C_AuctionHouse`, commodities): search, `StartCommoditiesPurchase` for the price, `ConfirmCommoditiesPurchase` on a click.
 

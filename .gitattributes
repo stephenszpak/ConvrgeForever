@@ -1,6 +1,5 @@
 # Left out of the packaged addon zip (and GitHub's "Download ZIP").
 .github export-ignore
 .gitattributes export-ignore
-tools export-ignore
 CLAUDE.md export-ignore
 .DS_Store export-ignore
