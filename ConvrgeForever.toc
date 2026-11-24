@@ -6,7 +6,7 @@
 ## SavedVariables: ConvrgeForeverDB
 ## SavedVariablesPerCharacter: ConvrgeForeverCharDB
 ## OptionalDeps: EllesmereUI, StashCount, FishFriend
-## IconTexture: Interface\Icons\INV_Misc_Bag_10
+## IconTexture: Interface\AddOns\ConvrgeForever\Media\Icon
 ## AddonCompartmentFunc: ConvrgeForever_Toggle
 
 Core\Core.lua
