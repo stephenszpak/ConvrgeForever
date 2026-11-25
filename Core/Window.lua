@@ -36,7 +36,7 @@ local function BuildGeneral(p)
         local status = W.Text(p, 11)
         status:SetPoint("LEFT", check.label, "RIGHT", 10, 0)
         p.moduleRows[#p.moduleRows + 1] = { key = key, check = check, status = status }
-        y = y + 44
+        y = y + 40
     end
 
     local note = W.Text(p, 11, 0.55, 0.55, 0.55)
@@ -233,7 +233,7 @@ end
 ---------------------------------------------------------------------------
 local function CreateWindow()
     local f = CreateFrame("Frame", "ConvrgeForeverFrame", UIParent, "BackdropTemplate")
-    f:SetSize(730, 460)
+    f:SetSize(730, 540)
     f:SetPoint("CENTER")
     f:SetFrameStrata("HIGH")
     f:SetToplevel(true)
