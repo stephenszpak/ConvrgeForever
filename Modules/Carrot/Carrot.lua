@@ -1,6 +1,8 @@
 -- Carrot module: puts Carrot on a Stick in your top trinket slot when you
 -- mount, and puts your previous trinket back when you dismount.
 --
+-- It never puts the carrot on in dungeons, raids, battlegrounds or arenas.
+--
 -- Equipping gear is blocked in combat, so a swap that comes due in combat
 -- waits until combat ends.
 
@@ -13,7 +15,6 @@ local M = CF:NewModule("carrot", {
     description = "Equips Carrot on a Stick in your top trinket slot while mounted, then puts your trinket back.",
     defaults = {
         enabled = true,
-        skipInstances = true,
         announce = true,
     },
     charDefaults = {
@@ -67,10 +68,13 @@ local function CarrotEquipped()
         or IsMountTrinket(GetInventoryItemID("player", BOTTOM_TRINKET))
 end
 
+-- The carrot never goes on in dungeons, raids, battlegrounds or arenas.
+-- Putting your trinket back still works there.
+local SKIPPED_INSTANCES = { party = true, raid = true, pvp = true, arena = true }
+
 local function InSkippedInstance()
-    if not db.skipInstances then return false end
     local inInstance, kind = IsInInstance()
-    return inInstance and (kind == "party" or kind == "raid")
+    return inInstance and SKIPPED_INSTANCES[kind] or false
 end
 
 -- Moves the item at bag/slot into the top trinket slot; the old trinket goes
@@ -260,24 +264,20 @@ local function BuildPage(p)
     p.items = {
         W.Check(p, "Swap automatically when mounting and dismounting", function() return db.enabled end,
             function(v) db.enabled = v end, nil, changed),
-        W.Check(p, "Skip in dungeons and raids", function() return db.skipInstances end,
-            function(v) db.skipInstances = v end,
-            "Avoids swapping right before a pull. Swapping an on-use trinket back starts its 30 second equip cooldown.",
-            changed),
         W.Check(p, "Chat message on each swap", function() return db.announce end,
             function(v) db.announce = v end, nil, changed),
     }
     for i, w in ipairs(p.items) do w:SetPoint("TOPLEFT", 0, -24 - (i - 1) * 24) end
 
-    W.Header(p, "Status"):SetPoint("TOPLEFT", 0, -112)
+    W.Header(p, "Status"):SetPoint("TOPLEFT", 0, -88)
     local labels = { "Carrot", "Top trinket", "Saved trinket", "Last swap" }
     p.vals = {}
     for i, l in ipairs(labels) do
         local k = W.Text(p, 12, 0.55, 0.55, 0.55)
-        k:SetPoint("TOPLEFT", 0, -116 - i * 20)
+        k:SetPoint("TOPLEFT", 0, -92 - i * 20)
         k:SetText(l)
         local v = W.Text(p, 12)
-        v:SetPoint("TOPLEFT", 110, -116 - i * 20)
+        v:SetPoint("TOPLEFT", 110, -92 - i * 20)
         v:SetWidth(420)
         p.vals[i] = v
     end
@@ -286,14 +286,15 @@ local function BuildPage(p)
         M.RestoreNow()
         CF.RefreshCurrent()
     end)
-    p.restore:SetPoint("TOPLEFT", 0, -226)
+    p.restore:SetPoint("TOPLEFT", 0, -202)
     W.Tooltip(p.restore, "Swaps the carrot out for your saved trinket (or the last trinket you wore up top). Use it if the carrot ever gets stuck on.")
 
     local note = W.Text(p, 11, 0.55, 0.55, 0.55)
-    note:SetPoint("TOPLEFT", 0, -262)
+    note:SetPoint("TOPLEFT", 0, -238)
     note:SetWidth(520)
     note:SetWordWrap(true)
-    note:SetText("Gear can't be changed in combat or while casting (opening a chest, gathering...), so a swap waits "
+    note:SetText("The carrot never goes on in dungeons, raids, battlegrounds or arenas. "
+        .. "Gear can't be changed in combat or while casting (opening a chest, gathering...), so a swap waits "
         .. "until you're free and only counts once the trinket is actually on. If you change your top trinket "
         .. "yourself while mounted, it's left alone when you dismount.")
 end
