@@ -296,6 +296,18 @@ local function CharLabel(name, realm, faction, class)
     return s
 end
 
+-- Read-only access for other modules (Sixty), so they never scan inventories
+-- themselves. Only meaningful while Stash is running.
+--   ForEachChar(fn)   fn(name, realm, faction, data) for every character in scope;
+--                     data = { class, bags, bank, equipped, bankScanned, lastSeen }, each [itemID] = count
+--   CharLabel(...)    class-colored name with ruleset/faction tags
+--   Current()         data, name, realm of the logged-in character (nil until known)
+--   Warband()         [itemID] = count in the Warband bank
+M.ForEachChar = ForEachChar
+M.CharLabel = CharLabel
+function M.Current() return charData, playerName, playerRealm end
+function M.Warband() return M.db.warband end
+
 -- Returns array of { label, bags, bank, equipped, total }, warbandCount, grandTotal
 local function GetCounts(itemID)
     local results, grand = {}, 0

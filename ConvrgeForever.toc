@@ -1,6 +1,6 @@
 ## Interface: 16000
 ## Title: ConvrgeForever
-## Notes: Lightweight modules for WoW Forever: Stash, Fishing, Carrot (mount trinket swap), Gold tracking, Salt Shaker timers and LFG for group quests.
+## Notes: Lightweight modules for WoW Forever: Stash, Fishing, Carrot (mount trinket swap), Gold tracking, Salt Shaker timers, LFG for group quests and Sixty (level 60 checklist and pre-raid wishlist).
 ## Author: You
 ## Version: 1.0.0
 ## SavedVariables: ConvrgeForeverDB
@@ -27,3 +27,6 @@ Modules\Gold\GoldUI.lua
 Modules\Salt\Salt.lua
 
 Modules\LFG\LFG.lua
+
+Modules\Sixty\Data.lua
+Modules\Sixty\Sixty.lua

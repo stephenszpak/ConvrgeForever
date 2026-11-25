@@ -61,6 +61,24 @@ Each character shows up after it logs in once with the shaker. The timer updates
 ### LFG
 Find a group for your elite and dungeon quests. The LFG page lists your group quests; click one to search the Group Finder for its zone or dungeon. There's also an eye button next to group quests in the quest log. Open it with `/cf lfg`.
 
+### Sixty
+Getting a fresh level 60 raid-ready, on one page:
+
+- **Checklist**: Onyxia attunement and the UBRS, Dire Maul, BRD, Scholomance and Stratholme keys, detected from your bags, keyring, gear and bank, with a hint for anything missing. Tick boxes for riding, epic mount, dual spec, the Hyjal bag quest and Pix Xizzix's weekly (which clears itself at the weekly reset). With Stash on, a row per character shows who has which key.
+- **Wishlist**: a target and fallback item per slot (Enhancement Shaman by default), each marked Equipped, Owned (with where: bags, bank, Warband bank or an alt), Fallback or Needed.
+- **Where to go next**: the dungeons and professions that hold the most pieces you still need.
+- Wishlist items get a tag in their tooltip, and a chat alert (with optional sound) when one drops.
+
+Commands (also `/sixty`):
+- `/cf sixty` opens the Sixty page
+- `/cf sixty want <slot> <item link> [source]` sets a slot's target (shift-click the item)
+- `/cf sixty fallback <slot> <item link> [source]` sets a slot's fallback
+- `/cf sixty reset` puts your wishlist back to the defaults
+- `/cf sixty list [CLASS Spec]` shows or switches the default list
+- `/cf sixty on|off` pauses tooltip tags, alerts and refreshes
+
+Slots: `weapon head neck shoulder back chest wrist hands waist legs feet ring1 ring2 trinket1 trinket2`. Alts and bank contents come from Stash, so log into each character and visit a banker once with Stash on.
+
 ## Notes
 
 - WoW Forever has rulesets instead of realms; anything that says "ruleset" means the PvP, Normal, RP etc. server you're on.
