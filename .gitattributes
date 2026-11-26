@@ -3,3 +3,4 @@
 .gitattributes export-ignore
 CLAUDE.md export-ignore
 .DS_Store export-ignore
+tools export-ignore
