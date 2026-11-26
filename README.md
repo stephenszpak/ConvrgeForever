@@ -10,6 +10,16 @@ A pack of small quality-of-life addons for **WoW Forever**, all in one `/cf` win
 
 Use the release zip above rather than GitHub's green **Code → Download ZIP** button: that one names the folder `ConvrgeForever-main`, which WoW won't load until you rename it.
 
+### Auto-update on Windows
+
+`tools/Install-AutoUpdate.ps1` adds a scheduled task that checks for a new release at logon and every 10 minutes, then replaces the addon folder when one is out. Your settings are kept. Run it from an Administrator PowerShell in the `tools` folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Install-AutoUpdate.ps1
+```
+
+Pass `-AddonDir "<path>\Interface\AddOns\ConvrgeForever"` if your game isn't in `C:\Program Files (x86)\World of Warcraft\_forever_`, `-Minutes 5` to change the interval, or `-Uninstall` to remove the task. The log is in `%LOCALAPPDATA%\ConvrgeForever-Sync\sync.log`.
+
 ## Getting around
 
 - `/cf` (or `/convrge`) opens the window. The minimap button and the AddOn compartment menu open it too.
