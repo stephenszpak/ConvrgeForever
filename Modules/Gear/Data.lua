@@ -56,6 +56,27 @@ D.COMMON_TYPES = {
     "Satyr", "Trogg", "Troll",
 }
 
+-- Words in mob names that give away the type when the type itself isn't in
+-- the name: "Blackfathom Myrmidon" is a Naga. Family names from Classic zones;
+-- WoW Forever may rename some, so taught mobs always win over these.
+D.NAME_HINTS = {
+    Naga = { "blackfathom", "slitherblade", "spitelash", "daggerspine", "wrathtail", "strashaz", "sarevess" },
+    Satyr = { "xavian", "jadefire", "legashi", "haldarr", "hatefury", "felmusk", "bleakheart" },
+    Ogre = { "gordok", "dunemaul", "splinter fist", "mo'grosh", "boulderfist", "dustbelcher", "crushridge" },
+    Gnoll = { "riverpaw", "redridge", "shadowhide", "mosshide", "rot hide", "mudsnout" },
+    Furbolg = { "gnarlpine", "timbermaw", "deadwood", "foulweald", "thistlefur", "winterfall" },
+    Trogg = { "rockjaw", "stonesplinter" },
+    Murloc = { "bluegill", "mirefin" },
+    Harpy = { "witchwing", "windfury", "bloodfury" },
+    Centaur = { "kolkar", "galak", "maraudine", "magram", "gelkis" },
+    Quilboar = { "razormane", "bristleback", "death's head" },
+    Troll = { "bloodscalp", "skullsplitter", "witherbark", "vilebranch", "mossflayer", "smolderthorn",
+              "firetree", "sandfury", "frostmane", "shatterspear" },
+}
+
+-- Shaman weapon imbues, in the order the set editor cycles through them.
+D.IMBUES = { "Rockbiter Weapon", "Flametongue Weapon", "Frostbrand Weapon", "Windfury Weapon" }
+
 -- Mob IDs known to be a type, for dungeons where names don't say it.
 -- Empty for now: teach mobs in game (target, then the Slayer tab or
 -- "/cf gear teach Naga"); taught mobs are saved for every character.

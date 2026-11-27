@@ -2,4 +2,5 @@
     <Binding name="CLICK ConvrgeFishSwapButton:LeftButton" header="CONVRGEFOREVER" category="ADDONS"/>
     <Binding name="CLICK ConvrgeFishCastButton:LeftButton" category="ADDONS"/>
     <Binding name="CLICK ConvrgeGearUseButton:LeftButton" category="ADDONS"/>
+    <Binding name="CLICK ConvrgeGearImbueKey:LeftButton" category="ADDONS"/>
 </Bindings>

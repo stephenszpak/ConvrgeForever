@@ -24,6 +24,7 @@ Modules\Carrot\Carrot.lua
 Modules\Gear\Data.lua
 Modules\Gear\Gear.lua
 Modules\Gear\Slayer.lua
+Modules\Gear\Extras.lua
 Modules\Gear\GearBar.lua
 
 Modules\Gold\Gold.lua
