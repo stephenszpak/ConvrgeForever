@@ -51,6 +51,19 @@ Replaces the standalone **FishFriend** addon and imports its data.
 ### Carrot
 Puts **Carrot on a Stick** in your top trinket slot when you mount and puts your trinket back when you dismount. Swaps wait until you're out of combat and done casting. Can skip dungeons and raids. `/cf carrot on|off`.
 
+### Gear
+Situational gear sets on a small bar. A set covers only the slots it needs and goes on top of whatever you're wearing; taking it off puts back what was there.
+
+- **On-use sets** (an AoE trinket, say): click the bar's Use button to put it on, click again to use it (works in combat). Your old item goes back once combat ends, and you get a chat message, sound and on-screen alert when the item is ready again. A freshly equipped trinket can't be used for about 30 seconds; the button shows that countdown.
+- **Custom sets** (Fire Res, a farming set): click to put on or take off, or have them come off after combat.
+- **Main sets** from the game's equipment manager are on the bar too.
+- Hover a bar button to pick another set; Shift-drag to move the bar; right-click takes a set off.
+- Make sets on the Gear page: click a slot to use what you're wearing there, or drop an item on it from your bags.
+- If an item isn't in your bags, it tells you whether it's in your bank or on another character (from Stash).
+- Works alongside Carrot: the two agree on which trinket is your real one.
+
+Commands: `/cf gear` opens the page; `/cf gear <set name>` puts a set on or takes it off; `/cf gear off` takes every set off; `/cf gear bar` shows or hides the bar. Keybind: **Options → Keybindings → AddOns → ConvrgeForever → Gear: put on / use on-use set**.
+
 ### Gold
 A movable widget with gold earned this session and gold per hour. Earnings are broken down by source (mobs, chests, quests, vendor, auction house, repairs, flight paths...) and by zone, with your best farming zones and a history of past sessions. Looted items can count at vendor value.
 

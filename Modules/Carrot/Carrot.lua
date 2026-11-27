@@ -111,6 +111,7 @@ local function BlockedBy()
     if UnitIsDeadOrGhost("player") then return "dead" end
 end
 M.BlockedBy = BlockedBy
+M.IsMountTrinket = IsMountTrinket   -- Gear uses this to agree with us on your real top trinket
 
 -- Remember the last non-carrot trinket you wore up top, for recovery.
 local function TrackTopTrinket()
