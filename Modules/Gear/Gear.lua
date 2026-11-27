@@ -6,13 +6,15 @@
 --            you use it, once combat ends, and you're told when it's ready again.
 --   custom   anything else (Fire Res, a farming set). Comes off when you say so,
 --            or after combat if you pick that.
+--   slayer   items with extra damage against one mob type (Slayer.lua builds
+--            these from your items' tooltips).
 -- Main sets stay in the game's equipment manager; the bar can equip those too.
 --
 -- Gear can't change in combat or while casting, so every swap is a request
 -- that's retried until the game shows the item in the slot.
 --
 -- Saved per character (ConvrgeForeverCharDB.gear):
---   sets[i]      = { id, name, kind, restore, slots = { [slot] = itemID }, kindAuto }
+--   sets[i]      = { id, name, kind, restore, slots = { [slot] = itemID }, kindAuto, mob? }
 --   saved[slot]  = { id = itemID or 0 (empty), by = set id }   what a set replaced
 --   active[id]   = { used, combat }                            sets we put on
 --   picks[cat]   = set id (or equipment set ID for "main") shown on the bar
@@ -30,6 +32,10 @@ local M = CF:NewModule("gear", {
         alertSound = true,
         alertScreen = true,
         alertInstanceOnly = false,
+        slayerLootAlert = true,   -- chat line when you loot a new slayer item
+        slayerGlow = true,        -- bar glows when your target matches a slayer set
+        items = {},               -- [itemID] = { v, slayer = { [mob type] = multiplier } }, from tooltips
+        mobs = {},                -- [npcID] = mob type you taught
     },
     charDefaults = {
         sets = {},
@@ -375,7 +381,7 @@ local function PutOn(s)
             Say(("%s is still on cooldown: ready in %d:%02d."):format(W.ItemName(item), left / 60, left % 60))
         end
     end
-    if s.kind == "onuse" then charDB.picks.onuse = s.id else charDB.picks.custom = s.id end
+    charDB.picks[s.kind] = s.id
     if next(req) then Request(req) else Changed() end
 end
 
@@ -544,6 +550,7 @@ M.SetByID, M.SetsOf, M.UseSlot, M.UseItem, M.SetIcon = SetByID, SetsOf, UseSlot,
 M.IsWorn, M.IsActive, M.PutOn, M.TakeOff, M.Toggle = IsWorn, IsActive, PutOn, TakeOff, Toggle
 M.MainSets, M.EquipMain, M.Cooldown, M.ItemIcon = MainSets, EquipMain, Cooldown, ItemIcon
 M.Say = Say
+M.FITS, M.NewSet, M.Changed = FITS, NewSet, function() Changed() end
 
 ---------------------------------------------------------------------------
 -- Startup
@@ -614,6 +621,7 @@ function M:OnLogin()
         WatchCooldowns()
     end)
 
+    if M.InitSlayer then M.InitSlayer() end
     if M.InitBar then M.InitBar() end
 end
 
@@ -634,6 +642,12 @@ function M:slash(msg)
         print("   /cf gear <set name>  - put a set on, or take it off")
         print("   /cf gear off  - take off every set")
         print("   /cf gear bar  - show or hide the bar")
+        print("   /cf gear teach <mob type>  - remember your target as that type (Naga, Ogre...)")
+        print("   /cf gear forget  - forget what your target was taught as")
+    elseif lower:match("^teach%s") and M.Teach then
+        M.Teach(strtrim(msg:sub(6)))
+    elseif lower == "forget" and M.Teach then
+        M.Teach(nil)
     else
         for _, s in ipairs(charDB.sets) do
             if s.name:lower() == lower then Toggle(s) return end
@@ -651,7 +665,6 @@ _G["BINDING_NAME_CLICK ConvrgeGearUseButton:LeftButton"] = "Gear: put on / use o
 local selected     -- set being edited
 local deleteArmed
 
-local KIND_TEXT = { onuse = "On-use", custom = "Custom" }
 local RESTORE_TEXT = { use = "after use", combat = "after combat", manual = "when you say" }
 
 local function SetLabel(s)
@@ -693,11 +706,11 @@ local function BuildSets(p)
     end)
     p.name:SetPoint("TOPLEFT", 0, 0)
 
-    p.kind = W.Choice(ed, "Kind", { { "onuse", "On-use" }, { "custom", "Custom" } },
+    p.kind = W.Choice(ed, "Kind", { { "onuse", "On-use" }, { "custom", "Custom" }, { "slayer", "Slayer" } },
         function() return selected and selected.kind end,
         function(v)
             selected.kind, selected.kindAuto = v, false
-            if v == "custom" and selected.restore == "use" then selected.restore = "manual" end
+            if v ~= "onuse" and selected.restore == "use" then selected.restore = "manual" end
             if v == "onuse" then selected.restore = "use" end
         end, function() Changed() end)
     p.kind:SetPoint("TOPLEFT", 0, -32)
@@ -867,6 +880,10 @@ local function RefreshSets(p)
             else
                 lines[#lines + 1] = C(YELLOW, "No item with a \"Use:\" effect in this set yet.")
             end
+        end
+        if selected.kind == "slayer" then
+            lines[#lines + 1] = selected.mob and ("Slayer set for " .. selected.mob .. C(GREY, " (rebuild it on the Slayer tab)"))
+                or C(YELLOW, "Not tied to a mob type: build slayer sets on the Slayer tab.")
         end
         lines[#lines + 1] = C(GREY, ("%d slot%s · comes off %s"):format(CountSlots(selected),
             CountSlots(selected) == 1 and "" or "s", RESTORE_TEXT[selected.restore] or "manually"))

@@ -3,6 +3,7 @@
 --   [ Main ]   your equipment manager sets
 --   [ Use  ]   on-use sets: click to put on, click again to use (secure, works
 --              in combat), right-click to take off
+--   [ Slay ]   slayer sets: shows (and glows with) the set for your target
 --   [ Set  ]   custom sets: click to put on or take off
 --
 -- Hovering a button opens a menu of the sets of that kind, up or down like the
@@ -124,6 +125,40 @@ Movable(use)
 use.cat = "onuse"
 buttons[#buttons + 1] = use
 
+-- Slayer: the set for your target if you have one, else the last one picked.
+local function ShownSlayer()
+    local s, mob = M.TargetSlayerSet and M.TargetSlayerSet()
+    if s then return s, mob end
+    return PickedSet("slayer")
+end
+
+local slayer = CreateFrame("Button", nil, bar, "BackdropTemplate")
+Style(slayer)
+Movable(slayer)
+slayer:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+slayer:SetScript("OnClick", function(_, button)
+    if IsShiftKeyDown() then return end
+    local s = ShownSlayer()
+    if not s then CF.Open("gear", "slayer") return end
+    if button == "RightButton" then M.TakeOff(s) else M.Toggle(s) end
+end)
+slayer.cat = "slayer"
+buttons[#buttons + 1] = slayer
+
+-- Pulsing glow for "your target matches this set"
+slayer.glow = slayer:CreateTexture(nil, "OVERLAY")
+slayer.glow:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+slayer.glow:SetBlendMode("ADD")
+slayer.glow:SetPoint("TOPLEFT", -6, 6)
+slayer.glow:SetPoint("BOTTOMRIGHT", 6, -6)
+slayer.glow:Hide()
+local pulse = slayer.glow:CreateAnimationGroup()
+pulse:SetLooping("BOUNCE")
+local fade = pulse:CreateAnimation("Alpha")
+fade:SetFromAlpha(1)
+fade:SetToAlpha(0.25)
+fade:SetDuration(0.6)
+
 local custom = CreateFrame("Button", nil, bar, "BackdropTemplate")
 Style(custom)
 Movable(custom)
@@ -234,8 +269,15 @@ local function EntriesFor(cat)
             lines[#lines + 1] = " "
             lines[#lines + 1] = (cat == "onuse") and "Click to put it on; then use it from the bar."
                 or (M.IsWorn(s) and "Click to take it off." or "Click to put it on.")
+            if cat == "slayer" and set.mob then
+                lines[#lines + 1] = C(GREY, "Alt-click: your target is a " .. set.mob .. ".")
+            end
             list[#list + 1] = { icon = M.SetIcon(s), title = s.name, on = M.IsWorn(s), lines = lines,
                 onClick = function()
+                    if cat == "slayer" and IsAltKeyDown() then
+                        if set.mob and M.Teach then M.Teach(set.mob) end
+                        return
+                    end
                     charDB.picks[cat] = set.id
                     if cat == "onuse" then
                         if not M.IsWorn(set) then M.PutOn(set) else M.RefreshBar() end
@@ -284,6 +326,7 @@ end)
 local TIPS = {
     main = { "Main set", "Click: equip it. Hover: pick another." },
     onuse = { "On-use", "Click: put it on, then click again to use it.\nRight-click: take it off. Hover: pick another." },
+    slayer = { "Slayer", "Click: put it on or take it off.\nRight-click: take it off. Hover: pick another.\nGlows when your target matches one of your slayer sets." },
     custom = { "Set", "Click: put it on or take it off.\nRight-click: take it off. Hover: pick another." },
 }
 
@@ -294,6 +337,9 @@ for _, b in ipairs(buttons) do
         local name
         if self.cat == "main" then
             local s = PickedMain()
+            name = s and s.name
+        elseif self.cat == "slayer" then
+            local s = ShownSlayer()
             name = s and s.name
         else
             local s = PickedSet(self.cat)
@@ -319,6 +365,7 @@ local function Layout()
     local shown = {
         main = #M.MainSets() > 0,
         onuse = #M.SetsOf("onuse") > 0,
+        slayer = #M.SetsOf("slayer") > 0,
         custom = #M.SetsOf("custom") > 0,
     }
     local n = 0
@@ -359,6 +406,13 @@ function M.RefreshBar()
     else
         use.cd:Hide()
     end
+
+    local sl, mob = ShownSlayer()
+    slayer.icon:SetTexture(sl and M.SetIcon(sl) or 134400)
+    SetBorder(slayer, sl and M.IsWorn(sl))
+    local glow = mob and db.slayerGlow and not M.IsWorn(sl)
+    slayer.glow:SetShown(glow and true or false)
+    if glow and not pulse:IsPlaying() then pulse:Play() elseif not glow then pulse:Stop() end
 
     local c = PickedSet("custom")
     custom.icon:SetTexture(c and M.SetIcon(c) or 134400)

@@ -21,7 +21,9 @@ Modules\Fishing\FishingUI.lua
 
 Modules\Carrot\Carrot.lua
 
+Modules\Gear\Data.lua
 Modules\Gear\Gear.lua
+Modules\Gear\Slayer.lua
 Modules\Gear\GearBar.lua
 
 Modules\Gold\Gold.lua

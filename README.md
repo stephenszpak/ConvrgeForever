@@ -61,8 +61,10 @@ Situational gear sets on a small bar. A set covers only the slots it needs and g
 - Make sets on the Gear page: click a slot to use what you're wearing there, or drop an item on it from your bags.
 - If an item isn't in your bags, it tells you whether it's in your bank or on another character (from Stash).
 - Works alongside Carrot: the two agree on which trinket is your real one.
+- **Slayer sets**: items with extra damage against a mob type ("Deals 2 times as much damage to Naga and Satyrs") are read from their tooltips. The Slayer tab lists each mob type with the items you have for it (here, in the bank, or on other characters via Stash) and builds a set in one click, biggest bonus first per slot. You get a chat line when you loot a new one.
+- When your target matches one of your slayer sets, the bar's Slayer button glows. Undead, Demon, Beast and other creature types are recognized by the game; others (Naga, Ogre...) by the mob's name or by teaching it: target the mob and click "Target is a ..." on the Slayer tab, Alt-click a slayer set on the bar, or `/cf gear teach Naga`. Taught mobs are remembered for every character.
 
-Commands: `/cf gear` opens the page; `/cf gear <set name>` puts a set on or takes it off; `/cf gear off` takes every set off; `/cf gear bar` shows or hides the bar. Keybind: **Options → Keybindings → AddOns → ConvrgeForever → Gear: put on / use on-use set**.
+Commands: `/cf gear` opens the page; `/cf gear <set name>` puts a set on or takes it off; `/cf gear off` takes every set off; `/cf gear bar` shows or hides the bar. `/cf gear teach <type>` and `/cf gear forget` teach or forget what your target is. Keybind: **Options → Keybindings → AddOns → ConvrgeForever → Gear: put on / use on-use set**.
 
 ### Gold
 A movable widget with gold earned this session and gold per hour. Earnings are broken down by source (mobs, chests, quests, vendor, auction house, repairs, flight paths...) and by zone, with your best farming zones and a history of past sessions. Looted items can count at vendor value.
