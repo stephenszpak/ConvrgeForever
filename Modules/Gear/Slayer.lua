@@ -332,7 +332,9 @@ end
 
 local function Recognize(unit)
     local found = {}
-    if not UnitExists(unit) or UnitIsPlayer(unit) or not UnitCanAttack("player", unit) then return found end
+    if not UnitExists(unit) or UnitIsPlayer(unit) or UnitIsDead(unit) or not UnitCanAttack("player", unit) then
+        return found
+    end
     local npc = NpcID(unit)
     local taught = npc and (db.mobs[npc] or D.KNOWN_MOBS[npc])
     if taught then found[taught] = "taught" end
@@ -350,17 +352,32 @@ local function Recognize(unit)
                 end
             end
         end
+        for mob, hints in pairs(D.NAME_HINTS) do
+            if not found[mob] then
+                for _, hint in ipairs(hints) do
+                    if name:find("[^%a]" .. hint .. "[^%a]") then found[mob] = "name" break end
+                end
+            end
+        end
     end
     return found
 end
 
 local function RecheckTarget()
     targetTypes = Recognize("target")
+    if M.OnTargetTypes then M.OnTargetTypes() end
     if M.RefreshBar then M.RefreshBar() end
     CF.RefreshCurrent()
 end
 
 function M.TargetTypes() return targetTypes end
+
+-- True while your (living) target still matches this slayer set.
+function M.TargetWants(s)
+    if not s or s.kind ~= "slayer" or not s.mob then return false end
+    targetTypes = Recognize("target")
+    return targetTypes[s.mob] ~= nil
+end
 
 -- The slayer set for your target, if you have one: taught first, then the
 -- creature type, then a name match.

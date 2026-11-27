@@ -5,6 +5,7 @@
 --              in combat), right-click to take off
 --   [ Slay ]   slayer sets: shows (and glows with) the set for your target
 --   [ Set  ]   custom sets: click to put on or take off
+--   [ Imbue ]  shaman: casts the weapon imbue your sets want; glows when missing
 --
 -- Hovering a button opens a menu of the sets of that kind, up or down like the
 -- totem bar. Shift-drag a button to move the bar.
@@ -211,6 +212,51 @@ for _, b in ipairs({ use, key }) do
 end
 
 ---------------------------------------------------------------------------
+-- Imbue button (shaman): a secure spell button, plus a hidden copy for the
+-- keybinding. Its spell is set out of combat only.
+---------------------------------------------------------------------------
+local imbue = CreateFrame("Button", "ConvrgeGearImbueButton", bar, "SecureActionButtonTemplate,BackdropTemplate")
+Style(imbue)
+Movable(imbue)
+local imbueKey = CreateFrame("Button", "ConvrgeGearImbueKey", UIParent, "SecureActionButtonTemplate")
+imbueKey:SetSize(1, 1)
+imbueKey:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+imbueKey:EnableMouse(false)
+for _, b in ipairs({ imbue, imbueKey }) do
+    b:RegisterForClicks("AnyUp", "AnyDown")
+    b:SetAttribute("type", "spell")
+    b:SetAttribute("shift-type*", "")
+end
+
+imbue.glow = imbue:CreateTexture(nil, "OVERLAY")
+imbue.glow:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+imbue.glow:SetBlendMode("ADD")
+imbue.glow:SetPoint("TOPLEFT", -6, 6)
+imbue.glow:SetPoint("BOTTOMRIGHT", 6, -6)
+imbue.glow:Hide()
+local imbuePulse = imbue.glow:CreateAnimationGroup()
+imbuePulse:SetLooping("BOUNCE")
+local imbueFade = imbuePulse:CreateAnimation("Alpha")
+imbueFade:SetFromAlpha(1)
+imbueFade:SetToAlpha(0.25)
+imbueFade:SetDuration(0.6)
+
+imbue:HookScript("OnEnter", function(self)
+    local want = M.WantedImbue and M.WantedImbue()
+    GameTooltip:SetOwner(self, db.bar.up and "ANCHOR_BOTTOM" or "ANCHOR_TOP")
+    GameTooltip:SetText(want or "Weapon imbue", 1, 1, 1)
+    GameTooltip:AddLine(M.ImbueMissing() and "Not on your weapon. Click to cast it." or "On your weapon. Click to refresh it.",
+        0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+end)
+imbue:HookScript("OnLeave", GameTooltip_Hide)
+
+local function SpellIcon(name)
+    if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(name) end
+    return GetSpellTexture and GetSpellTexture(name)
+end
+
+---------------------------------------------------------------------------
 -- Flyout menu
 ---------------------------------------------------------------------------
 local fly = CreateFrame("Frame", nil, bar)
@@ -379,6 +425,17 @@ local function Layout()
             b:Hide()
         end
     end
+    local want = M.WantedImbue and M.WantedImbue()
+    if want then
+        imbue:ClearAllPoints()
+        imbue:SetPoint("LEFT", bar, "LEFT", n * (SIZE + GAP), 0)
+        imbue:Show()
+        n = n + 1
+    else
+        imbue:Hide()
+    end
+    imbue:SetAttribute("spell", want)
+    imbueKey:SetAttribute("spell", want)
     bar:SetWidth(math.max(SIZE, n * (SIZE + GAP) - GAP))
     bar:SetShown(db.bar.show and n > 0)
     if not bar:IsShown() then fly:Hide() end
@@ -388,6 +445,14 @@ end
 function M.RefreshBar()
     if not db then return end
     Layout()
+
+    local want = M.WantedImbue and M.WantedImbue()
+    if want then
+        imbue.icon:SetTexture(SpellIcon(want) or 134400)
+        local missing = M.ImbueMissing()
+        imbue.glow:SetShown(missing)
+        if missing and not imbuePulse:IsPlaying() then imbuePulse:Play() elseif not missing then imbuePulse:Stop() end
+    end
 
     local m = PickedMain()
     main.icon:SetTexture(m and m.icon or 134400)

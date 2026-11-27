@@ -18,6 +18,8 @@
 --   saved[slot]  = { id = itemID or 0 (empty), by = set id }   what a set replaced
 --   active[id]   = { used, combat }                            sets we put on
 --   picks[cat]   = set id (or equipment set ID for "main") shown on the bar
+--   mainImbues[equipment set ID] = shaman imbue spell for a main set (Extras.lua)
+--   roleSets[role] = equipment set ID offered when the group gives you that role
 
 local _, CF = ...
 local W = CF.W
@@ -36,6 +38,9 @@ local M = CF:NewModule("gear", {
         slayerGlow = true,        -- bar glows when your target matches a slayer set
         items = {},               -- [itemID] = { v, slayer = { [mob type] = multiplier } }, from tooltips
         mobs = {},                -- [npcID] = mob type you taught
+        tooltipTag = true,        -- "Gear: <sets>" line on item tooltips
+        slayerAuto = false,       -- put the slayer set on by itself when you target a match
+        rolesOffer = true,        -- offer your main set for the role the group gives you
     },
     charDefaults = {
         sets = {},
@@ -43,6 +48,8 @@ local M = CF:NewModule("gear", {
         saved = {},
         active = {},
         picks = {},
+        mainImbues = {},
+        roleSets = {},
     },
 })
 
@@ -445,6 +452,8 @@ local function CheckRestores()
         local s = SetByID(id)
         if s then
             local due = (s.restore == "use" and a.used) or (s.restore == "combat" and a.combat)
+                -- put on by itself for a target: off after combat unless your target still wants it
+                or (a.auto and a.combat and not (M.TargetWants and M.TargetWants(s)))
             if due then
                 TakeOff(s)
                 Say(s.name .. (a.used and " used" or "") .. ": your gear is back on.")
@@ -622,6 +631,7 @@ function M:OnLogin()
     end)
 
     if M.InitSlayer then M.InitSlayer() end
+    if M.InitExtras then M.InitExtras() end
     if M.InitBar then M.InitBar() end
 end
 
@@ -808,6 +818,16 @@ local function BuildSets(p)
     end)
     p.delete:SetPoint("LEFT", p.toggle, "RIGHT", 4, 0)
 
+    -- Shaman: the weapon imbue that goes with this set (cycles through them)
+    p.imbue = W.Button(ed, "Imbue: none", 150, 22, function()
+        if selected and M.NextImbue then
+            selected.imbue = M.NextImbue(selected.imbue)
+            Changed()
+        end
+    end)
+    p.imbue:SetPoint("LEFT", p.delete, "RIGHT", 4, 0)
+    W.Tooltip(p.imbue, "Click to change. After this set swaps your weapons, the bar's imbue button reminds you to put it back on.")
+
     p.info = W.Text(ed, 12)
     p.info:SetPoint("TOPLEFT", 0, -350)
     p.info:SetWidth(340)
@@ -847,6 +867,7 @@ local function RefreshSets(p)
 
     local has = selected ~= nil
     for _, child in ipairs({ p.name, p.kind, p.restore, p.toggle, p.delete, p.info }) do child:SetShown(has) end
+    if not has then p.imbue:Hide() end
     for _, cell in ipairs(p.cells) do cell:SetShown(has) end
     p.empty:SetShown(not has)
     if has then
@@ -868,6 +889,9 @@ local function RefreshSets(p)
         p.toggle.text:SetText((worn or IsActive(selected)) and "Take off" or "Put on")
         p.delete.text:SetText(deleteArmed == selected and C(RED, "Click to confirm") or "Delete")
         p.delete:SetWidth(deleteArmed == selected and 120 or 90)
+        local shaman = M.IsShaman and M.IsShaman()
+        p.imbue:SetShown(shaman and true or false)
+        if shaman then p.imbue.text:SetText("Imbue: " .. (M.ImbueShort and M.ImbueShort(selected.imbue) or "none")) end
 
         local lines = {}
         if selected.kind == "onuse" then
