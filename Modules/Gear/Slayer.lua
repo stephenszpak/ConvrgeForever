@@ -302,9 +302,29 @@ end
 local targetTypes = {}     -- [mob type] = "taught" | "type" | "name"
 local formsCache = {}
 
+-- The game can hand addons "secret" unit values (GUID, name...) that can't be
+-- read or compared. Treat those as unknown: the step that needs them is skipped.
+local IsSecret = issecretvalue or function() return false end
+local function Plain(v)
+    if v ~= nil and IsSecret(v) then return nil end
+    return v
+end
+
+-- Calls a unit API and returns its first result, or nil plus true if secret.
+local function Ask(fn, ...)
+    if not fn then return nil end
+    local v = fn(...)
+    if v ~= nil and IsSecret(v) then return nil, true end
+    return v
+end
+
+local function TargetName()
+    return Plain(UnitName("target"))
+end
+
 local function NpcID(unit)
-    local guid = UnitGUID(unit)
-    if not guid then return end
+    local guid = Ask(UnitGUID, unit)
+    if type(guid) ~= "string" then return end
     local kind, _, _, _, _, id = strsplit("-", guid)
     if kind == "Creature" or kind == "Vehicle" then return tonumber(id) end
 end
@@ -332,19 +352,24 @@ end
 
 local function Recognize(unit)
     local found = {}
-    if not UnitExists(unit) or UnitIsPlayer(unit) or UnitIsDead(unit) or not UnitCanAttack("player", unit) then
-        return found
-    end
+    local exists, s1 = Ask(UnitExists, unit)
+    local isPlayer, s2 = Ask(UnitIsPlayer, unit)
+    local dead, s3 = Ask(UnitIsDead, unit)
+    local attackable, s4 = Ask(UnitCanAttack, "player", unit)
+    if s1 or s2 or s3 or s4 then return found end   -- can't tell what it is
+    if not exists or isPlayer or dead or not attackable then return found end
     local npc = NpcID(unit)
-    local taught = npc and (db.mobs[npc] or D.KNOWN_MOBS[npc])
+    local rawName = Ask(UnitName, unit)
+    local nameKey = type(rawName) == "string" and ("name:" .. rawName:lower()) or nil
+    local taught = (npc and (db.mobs[npc] or D.KNOWN_MOBS[npc])) or (nameKey and db.mobs[nameKey])
     if taught then found[taught] = "taught" end
-    local ct = UnitCreatureType(unit)
-    if ct and ct ~= "" then
+    local ct = Ask(UnitCreatureType, unit)
+    if type(ct) == "string" and ct ~= "" then
         local mob = Normalize(ct)
         found[mob] = found[mob] or "type"
     end
-    if not taught then
-        local name = " " .. (UnitName(unit) or ""):lower() .. " "
+    if not taught and type(rawName) == "string" then
+        local name = " " .. rawName:lower() .. " "
         for mob in pairs(KnownTypes()) do
             if not found[mob] then
                 for _, form in ipairs(FormsOf(mob)) do
@@ -394,15 +419,18 @@ end
 
 -- Remembers your target as a mob type, or forgets it with nil.
 function M.Teach(mob)
-    local npc = NpcID("target")
-    if not npc then M.Say("target a mob first.") return end
-    local name = UnitName("target") or "your target"
+    -- Saved by mob ID; when the game won't tell addons the ID, by the mob's name.
+    local name = TargetName()
+    local key = NpcID("target") or (name and ("name:" .. name:lower()))
+    if not key then M.Say("target a mob first (some targets can't be read by addons, e.g. in combat).") return end
+    name = name or "your target"
     if not mob or mob == "" then
-        db.mobs[npc] = nil
+        db.mobs[key] = nil
+        if name ~= "your target" then db.mobs["name:" .. name:lower()] = nil end
         M.Say("forgot what " .. name .. " is.")
     else
         mob = Normalize(Capitalize(mob))
-        db.mobs[npc] = mob
+        db.mobs[key] = mob
         M.Say(name .. " is a " .. mob .. " from now on.")
     end
     RecheckTarget()
@@ -587,18 +615,22 @@ local function RefreshSlayer(p)
     p.teach.text:SetText(selType and ("Target is a " .. selType) or "Teach target")
 
     -- Your target
-    if UnitExists("target") and not UnitIsPlayer("target") then
+    local exists, isPlayer = Plain(UnitExists("target")), Plain(UnitIsPlayer("target"))
+    if exists and not isPlayer then
         local parts = {}
         for mob, how in pairs(targetTypes) do parts[#parts + 1] = mob .. C(GREY, " (" .. HOW[how] .. ")") end
         table.sort(parts)
-        p.target:SetText("Target: " .. (UnitName("target") or "?") .. "  "
+        p.target:SetText("Target: " .. (TargetName() or "?") .. "  "
             .. (#parts > 0 and table.concat(parts, ", ") or C(GREY, "no type recognized")))
     else
         p.target:SetText(C(GREY, "Target a mob to see what it's recognized as, or to teach it."))
     end
-    local hasNpc = NpcID("target") ~= nil
-    p.teach:SetEnabled(hasNpc and selType ~= nil)
-    p.forget:SetEnabled(hasNpc and db.mobs[NpcID("target") or 0] ~= nil)
+    local tName = TargetName()
+    local npc = NpcID("target")
+    local nameKey = tName and ("name:" .. tName:lower())
+    local canTeach = exists and not isPlayer and (npc or nameKey) ~= nil
+    p.teach:SetEnabled(canTeach and selType ~= nil)
+    p.forget:SetEnabled(canTeach and ((npc and db.mobs[npc]) or (nameKey and db.mobs[nameKey])) ~= nil)
     for _, o in ipairs(p.opts) do o.Refresh() end
 end
 

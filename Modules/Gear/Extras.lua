@@ -146,6 +146,7 @@ end
 local function CheckRole()
     if not IsInGroup() then lastRole = nil return end
     local role = UnitGroupRolesAssigned and UnitGroupRolesAssigned("player")
+    if role ~= nil and issecretvalue and issecretvalue(role) then return end   -- not readable by addons
     if not role or role == "NONE" or role == lastRole then return end
     lastRole = role
     if not db.rolesOffer then return end
