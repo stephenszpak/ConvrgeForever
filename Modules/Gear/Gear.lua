@@ -37,7 +37,7 @@ local M = CF:NewModule("gear", {
         slayerLootAlert = true,   -- chat line when you loot a new slayer item
         slayerGlow = true,        -- bar glows when your target matches a slayer set
         items = {},               -- [itemID] = { v, slayer = { [mob type] = multiplier } }, from tooltips
-        mobs = {},                -- [npcID] = mob type you taught
+        mobs = {},                -- [npcID] or ["name:<mob name>"] = mob type you taught
         tooltipTag = true,        -- "Gear: <sets>" line on item tooltips
         slayerAuto = false,       -- put the slayer set on by itself when you target a match
         rolesOffer = true,        -- offer your main set for the role the group gives you
