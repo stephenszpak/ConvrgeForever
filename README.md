@@ -79,16 +79,6 @@ A movable widget with gold earned this session and gold per hour. Earnings are b
 - `/gold reset` starts a new session
 - `/gold show|hide` shows or hides the widget
 
-### Salt
-Tracks the **Salt Shaker** cooldown (Deeprock Salt → Refined Deeprock Salt) on every character.
-
-- The Salt page lists each character's time left, when it'll be ready, and their Deeprock and Refined Deeprock Salt
-- Chat message and sound when a shaker comes off cooldown, and a list of ready shakers when you log in
-- Timers on the Salt Shaker tooltip
-- `/cf salt` prints the timers in chat
-
-Each character shows up after it logs in once with the shaker. The timer updates while the shaker is in your bags.
-
 ### LFG
 Find a group for your elite and dungeon quests. The LFG page lists your group quests; click one to search the Group Finder for its zone or dungeon. There's also an eye button next to group quests in the quest log. Open it with `/cf lfg`.
 
